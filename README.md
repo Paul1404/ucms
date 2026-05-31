@@ -1,21 +1,25 @@
 # ucms
 
-A lightweight, self-hostable website builder for small organizations: clubs, parishes, and local businesses that want a simple one-page website without hiring a developer.
+A lightweight, self-hostable website builder for small organizations: clubs, parishes, and local businesses that want a simple website without hiring a developer. The interface is in German.
 
-You build your site by stacking sections (hero, text, gallery, features, call to action, contact, and more), editing each one through plain forms, and dragging them into the order you want. When it looks right, hit Publish. The first account you create becomes the administrator, and public sign-up is closed after that.
+You build each site on a free-form canvas: drop in sections (hero, text, gallery, features, call to action, contact, and more), drag them anywhere, resize them, and set their colors. Each site gets its own header and footer. When it looks right, hit Veröffentlichen. One instance hosts many sites, each published under its own address at `your-domain/<slug>`.
+
+The first account you create becomes the administrator. Public sign-up is closed after that; the admin invites further users and assigns them as editors to individual sites.
 
 ## Features
 
-- Visual one-page builder: add sections, edit text in place on the page or in a side panel, drag to reorder
+- Free-form visual editor: drag to position, drag handles to resize, per-element background, text color, radius, padding, opacity, shadow, and z-order
 - Thirteen section types: hero, text, image, gallery, features, testimonial, call to action, contact, opening hours, FAQ, video, map, divider
-- Starter templates (club, local business, parish) and sensible defaults so nothing looks empty
-- Built-in image uploads (stored in the database, no S3 or extra setup)
+- Multiple sites per instance, each served at `your-domain/<slug>`
+- Configurable header (logo, navigation, sticky) and footer (text, links) per site
+- Invited editors: the admin creates users and assigns them to the sites they may edit
+- Image uploads to S3 when configured, with automatic fallback to database storage
 - Undo and redo, autosave, and a guard against losing unsaved work
-- Desktop, tablet, and mobile preview widths
-- Per-section background and spacing, a site-wide brand color, and a font choice
-- SEO built in: meta description, social share image, `robots.txt`, and `sitemap.xml`
+- Per-site brand color, font, meta description, and social share image
+- SEO built in: meta tags, `robots.txt`, and `sitemap.xml`
 - Draft and Publish: edit privately, publish when ready
 - Email and password authentication
+- German UI throughout
 - Single Docker image, runs anywhere
 
 ## Tech stack
@@ -33,11 +37,13 @@ bun run db:migrate          # create the tables
 bun run dev                 # http://localhost:3000
 ```
 
-Open the site and you will be sent to `/setup` to create the administrator account. After that, sign in at `/login` and build your site in the editor at `/admin`.
+Open the app and you will be sent to `/setup` to create the administrator account. After that, sign in at `/login`, manage sites and users at `/admin`, and edit a site at `/admin/sites/<id>`. Published sites are public at `/<slug>`.
 
 ### Environment variables
 
 See `.env.example`. The required ones are `DATABASE_URL` and `BETTER_AUTH_SECRET`. Generate a secret with `openssl rand -base64 32`.
+
+Uploads use S3 when `BUCKET_NAME`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` are set (with optional `AWS_REGION` and `AWS_ENDPOINT_URL_S3` for non-AWS providers). When they are not set, uploads are stored in the database, so no extra setup is needed for local development.
 
 ## Useful commands
 

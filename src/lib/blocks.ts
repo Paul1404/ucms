@@ -9,10 +9,60 @@ export const PADDINGS = ["sm", "md", "lg"] as const;
 export const ALIGNMENTS = ["left", "center"] as const;
 export const IMAGE_SIZES = ["normal", "wide", "full"] as const;
 
+// The free-form canvas is laid out on a fixed design width per breakpoint.
+// Every frame coordinate is in pixels relative to that breakpoint's width.
+// Each breakpoint renders at its own width so what you build is what ships and
+// text stays readable on mobile instead of being shrunk down.
+export const DESIGN_WIDTH = 1200;
+export const DEFAULT_CANVAS_HEIGHT = 1400;
+export const GRID = 8;
+
+export const DEVICES = ["desktop", "tablet", "mobile"] as const;
+export type Device = (typeof DEVICES)[number];
+
+// Design width and default canvas height for each breakpoint.
+export const BREAKPOINTS: Record<Device, { width: number; height: number; label: string }> = {
+  desktop: { width: 1200, height: 1400, label: "Desktop" },
+  tablet: { width: 810, height: 1200, label: "Tablet" },
+  mobile: { width: 390, height: 1600, label: "Mobil" },
+};
+
+// Absolute position and size of a block on the canvas.
+export const frameSchema = v.object({
+  x: v.optional(v.number(), 80),
+  y: v.optional(v.number(), 40),
+  w: v.optional(v.number(), 1040),
+  h: v.optional(v.number(), 240),
+  z: v.optional(v.number(), 1),
+});
+
+// Per-block visual overrides. Empty string means "inherit from the theme".
+export const blockStyleSchema = v.object({
+  bg: v.optional(v.string(), ""),
+  color: v.optional(v.string(), ""),
+  radius: v.optional(v.number(), 0),
+  padding: v.optional(v.number(), 24),
+  opacity: v.optional(v.number(), 100),
+  shadow: v.optional(v.boolean(), false),
+  border: v.optional(v.boolean(), false),
+  hidden: v.optional(v.boolean(), false),
+});
+
 const styleFields = {
   background: v.optional(v.picklist(BACKGROUNDS), "default"),
   padding: v.optional(v.picklist(PADDINGS), "lg"),
+  // Per-breakpoint layout. `frame` is the desktop base; tablet and mobile are
+  // optional overrides that inherit from the larger breakpoint when unset.
+  frame: v.optional(frameSchema),
+  frameTablet: v.optional(frameSchema),
+  frameMobile: v.optional(frameSchema),
+  style: v.optional(blockStyleSchema),
 };
+
+export type Frame = v.InferOutput<typeof frameSchema>;
+export type BlockStyle = v.InferOutput<typeof blockStyleSchema>;
+
+export const DEFAULT_FRAME: Frame = { x: 80, y: 40, w: 1040, h: 240, z: 1 };
 
 const idField = v.pipe(v.string(), v.minLength(1));
 
@@ -176,6 +226,41 @@ export type TestimonialBlock = v.InferOutput<typeof testimonialSchema>;
 export type VideoBlock = v.InferOutput<typeof videoSchema>;
 export type MapBlock = v.InferOutput<typeof mapSchema>;
 
+// --- per-breakpoint layout helpers ---
+
+// The frame to display for a block at a given breakpoint. Tablet falls back to
+// desktop; mobile falls back to tablet, then desktop.
+export function getFrame(block: Block, device: Device): Frame {
+  if (device === "tablet") return block.frameTablet ?? block.frame ?? DEFAULT_FRAME;
+  if (device === "mobile")
+    return block.frameMobile ?? block.frameTablet ?? block.frame ?? DEFAULT_FRAME;
+  return block.frame ?? DEFAULT_FRAME;
+}
+
+// Whether a block has its own (non-inherited) frame at a breakpoint.
+export function hasOwnFrame(block: Block, device: Device): boolean {
+  if (device === "tablet") return Boolean(block.frameTablet);
+  if (device === "mobile") return Boolean(block.frameMobile);
+  return Boolean(block.frame);
+}
+
+// Write a frame for a specific breakpoint, leaving the others untouched.
+export function setFrame(block: Block, device: Device, frame: Frame): Block {
+  if (device === "tablet") return { ...block, frameTablet: frame };
+  if (device === "mobile") return { ...block, frameMobile: frame };
+  return { ...block, frame };
+}
+
+// Adapt a frame from one breakpoint width to another: scale x and width
+// proportionally, keep the vertical position and height. Content reflows inside
+// the narrower width without shrinking text.
+export function reflowFrame(frame: Frame, fromWidth: number, toWidth: number): Frame {
+  const r = toWidth / fromWidth;
+  const w = Math.min(toWidth, Math.max(GRID * 6, Math.round(frame.w * r)));
+  const x = Math.max(0, Math.min(toWidth - w, Math.round(frame.x * r)));
+  return { x: snap(x), y: snap(frame.y), w: snap(w), h: frame.h, z: frame.z };
+}
+
 function newId(): string {
   return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
@@ -190,9 +275,9 @@ export function createBlock(type: BlockType): Block {
       return {
         id,
         type,
-        heading: "Welcome to our website",
-        subheading: "A short, friendly sentence about what you do.",
-        buttonText: "Get in touch",
+        heading: "Willkommen auf unserer Website",
+        subheading: "Ein kurzer, freundlicher Satz darüber, was ihr macht.",
+        buttonText: "Kontakt aufnehmen",
         buttonUrl: "#contact",
         imageUrl: "",
         align: "center",
@@ -203,8 +288,8 @@ export function createBlock(type: BlockType): Block {
       return {
         id,
         type,
-        heading: "About us",
-        body: "Tell your visitors who you are and what makes you special. Keep it warm and simple.",
+        heading: "Über uns",
+        body: "Erzählt euren Besuchern, wer ihr seid und was euch besonders macht. Haltet es warm und einfach.",
         align: "left",
         background: "default",
         padding: "lg",
@@ -215,7 +300,7 @@ export function createBlock(type: BlockType): Block {
       return {
         id,
         type,
-        heading: "Gallery",
+        heading: "Galerie",
         items: [
           { url: "", caption: "" },
           { url: "", caption: "" },
@@ -228,11 +313,11 @@ export function createBlock(type: BlockType): Block {
       return {
         id,
         type,
-        heading: "What we offer",
+        heading: "Was wir bieten",
         items: [
-          { title: "First thing", description: "A sentence about it." },
-          { title: "Second thing", description: "A sentence about it." },
-          { title: "Third thing", description: "A sentence about it." },
+          { title: "Erstes Angebot", description: "Ein Satz dazu." },
+          { title: "Zweites Angebot", description: "Ein Satz dazu." },
+          { title: "Drittes Angebot", description: "Ein Satz dazu." },
         ],
         background: "muted",
         padding: "lg",
@@ -241,9 +326,9 @@ export function createBlock(type: BlockType): Block {
       return {
         id,
         type,
-        heading: "Ready to start?",
-        text: "Reach out and we will get back to you.",
-        buttonText: "Contact us",
+        heading: "Bereit loszulegen?",
+        text: "Meldet euch und wir kommen auf euch zurück.",
+        buttonText: "Kontakt",
         buttonUrl: "#contact",
         background: "primary",
         padding: "lg",
@@ -252,8 +337,8 @@ export function createBlock(type: BlockType): Block {
       return {
         id,
         type,
-        heading: "Get in touch",
-        email: "hello@example.com",
+        heading: "Kontakt aufnehmen",
+        email: "hallo@beispiel.de",
         phone: "",
         address: "",
         background: "muted",
@@ -263,11 +348,11 @@ export function createBlock(type: BlockType): Block {
       return {
         id,
         type,
-        heading: "Opening hours",
+        heading: "Öffnungszeiten",
         items: [
-          { label: "Monday – Friday", value: "9:00 – 17:00" },
-          { label: "Saturday", value: "10:00 – 14:00" },
-          { label: "Sunday", value: "Closed" },
+          { label: "Montag bis Freitag", value: "9:00 bis 17:00" },
+          { label: "Samstag", value: "10:00 bis 14:00" },
+          { label: "Sonntag", value: "Geschlossen" },
         ],
         background: "default",
         padding: "lg",
@@ -276,10 +361,10 @@ export function createBlock(type: BlockType): Block {
       return {
         id,
         type,
-        heading: "Frequently asked questions",
+        heading: "Häufige Fragen",
         items: [
-          { question: "A common question?", answer: "A clear, helpful answer." },
-          { question: "Another question?", answer: "Another helpful answer." },
+          { question: "Eine häufige Frage?", answer: "Eine klare, hilfreiche Antwort." },
+          { question: "Noch eine Frage?", answer: "Eine weitere hilfreiche Antwort." },
         ],
         background: "default",
         padding: "lg",
@@ -288,8 +373,8 @@ export function createBlock(type: BlockType): Block {
       return {
         id,
         type,
-        quote: "They did a wonderful job and we could not be happier.",
-        author: "A happy member",
+        quote: "Sie haben großartige Arbeit geleistet und wir könnten nicht zufriedener sein.",
+        author: "Ein zufriedenes Mitglied",
         role: "",
         background: "muted",
         padding: "lg",
@@ -300,7 +385,7 @@ export function createBlock(type: BlockType): Block {
       return {
         id,
         type,
-        heading: "Find us",
+        heading: "So findet ihr uns",
         address: "",
         background: "default",
         padding: "lg",
@@ -313,18 +398,55 @@ export function createBlock(type: BlockType): Block {
 export const BLOCK_LABELS: Record<BlockType, string> = {
   hero: "Hero",
   text: "Text",
-  image: "Image",
-  gallery: "Gallery",
-  features: "Features",
-  cta: "Call to action",
-  contact: "Contact",
-  hours: "Opening hours",
+  image: "Bild",
+  gallery: "Galerie",
+  features: "Funktionen",
+  cta: "Handlungsaufruf",
+  contact: "Kontakt",
+  hours: "Öffnungszeiten",
   faq: "FAQ",
-  testimonial: "Testimonial",
+  testimonial: "Stimme",
   video: "Video",
-  map: "Map",
-  divider: "Divider",
+  map: "Karte",
+  divider: "Trenner",
 };
+
+// Sensible default size (in canvas pixels) for a freshly added block, so it
+// lands on the canvas already looking reasonable.
+export const DEFAULT_SIZES: Record<BlockType, { w: number; h: number }> = {
+  hero: { w: 1040, h: 460 },
+  text: { w: 760, h: 220 },
+  image: { w: 720, h: 420 },
+  gallery: { w: 1040, h: 420 },
+  features: { w: 1040, h: 320 },
+  cta: { w: 880, h: 260 },
+  contact: { w: 640, h: 300 },
+  hours: { w: 560, h: 320 },
+  faq: { w: 760, h: 360 },
+  testimonial: { w: 760, h: 300 },
+  video: { w: 880, h: 520 },
+  map: { w: 880, h: 480 },
+  divider: { w: 1040, h: 40 },
+};
+
+// Compute a frame for a new block, dropping it below whatever is already on the
+// canvas so blocks do not pile up on top of each other.
+export function placeNewBlock(type: BlockType, existing: Block[]): Frame {
+  const size = DEFAULT_SIZES[type];
+  const bottom = existing.reduce((max, b) => {
+    const f = b.frame;
+    return f ? Math.max(max, f.y + f.h) : max;
+  }, 0);
+  const x = Math.max(0, Math.round((DESIGN_WIDTH - size.w) / 2));
+  const y = existing.length === 0 ? 40 : bottom + GRID * 3;
+  const z = existing.reduce((max, b) => Math.max(max, b.frame?.z ?? 1), 0) + 1;
+  return { x, y, w: size.w, h: size.h, z };
+}
+
+// Snap a value to the editing grid.
+export function snap(value: number): number {
+  return Math.round(value / GRID) * GRID;
+}
 
 // Convert a YouTube or Vimeo watch URL into an embeddable URL.
 export function toEmbedUrl(url: string): string | null {

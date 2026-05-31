@@ -7,6 +7,18 @@ import { getEnv } from "./env";
 
 const env = getEnv();
 
+// Public sign-up is closed after the first admin account. Admin-initiated
+// invites flip this flag for the duration of the create call so the database
+// hook lets the new account through. Safe in a single-process deployment.
+let invitationInProgress = false;
+
+export function withInvitation<T>(fn: () => Promise<T>): Promise<T> {
+  invitationInProgress = true;
+  return fn().finally(() => {
+    invitationInProgress = false;
+  });
+}
+
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
@@ -32,15 +44,17 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        // Only the first account can be created through sign-up. After that,
-        // registration is closed so the public cannot create accounts on a
-        // self-hosted instance. Additional editors are added from the admin UI.
-        before: async () => {
+        // Only the first account can be created through public sign-up. After
+        // that, registration is closed and additional users are added from the
+        // admin UI (which sets `invitationInProgress`). The very first account
+        // becomes an admin; invited accounts are plain members.
+        before: async (user) => {
           const [row] = await db.select({ value: count() }).from(schema.users);
-          if ((row?.value ?? 0) > 0) {
-            throw new Error("Registration is closed. An administrator must invite new users.");
+          const isFirst = (row?.value ?? 0) === 0;
+          if (!isFirst && !invitationInProgress) {
+            throw new Error("Die Registrierung ist geschlossen. Bitte wende dich an einen Admin.");
           }
-          return undefined;
+          return { data: { ...user, role: isFirst ? "admin" : "member" } };
         },
       },
     },

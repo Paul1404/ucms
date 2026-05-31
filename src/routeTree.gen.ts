@@ -11,9 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as SlugRouteImport } from './routes/$slug'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminSitesSiteIdRouteImport } from './routes/admin/sites/$siteId'
 
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
@@ -23,6 +26,11 @@ const SetupRoute = SetupRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SlugRoute = SlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRouteRoute = AdminRouteRouteImport.update({
@@ -40,39 +48,83 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSitesSiteIdRoute = AdminSitesSiteIdRouteImport.update({
+  id: '/sites/$siteId',
+  path: '/sites/$siteId',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/$slug': typeof SlugRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/sites/$siteId': typeof AdminSitesSiteIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$slug': typeof SlugRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin': typeof AdminIndexRoute
+  '/admin/sites/$siteId': typeof AdminSitesSiteIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/$slug': typeof SlugRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/sites/$siteId': typeof AdminSitesSiteIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/login' | '/setup' | '/admin/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/$slug'
+    | '/login'
+    | '/setup'
+    | '/admin/users'
+    | '/admin/'
+    | '/admin/sites/$siteId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/setup' | '/admin'
-  id: '__root__' | '/' | '/admin' | '/login' | '/setup' | '/admin/'
+  to:
+    | '/'
+    | '/$slug'
+    | '/login'
+    | '/setup'
+    | '/admin/users'
+    | '/admin'
+    | '/admin/sites/$siteId'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/$slug'
+    | '/login'
+    | '/setup'
+    | '/admin/users'
+    | '/admin/'
+    | '/admin/sites/$siteId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  SlugRoute: typeof SlugRoute
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
 }
@@ -91,6 +143,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$slug': {
+      id: '/$slug'
+      path: '/$slug'
+      fullPath: '/$slug'
+      preLoaderRoute: typeof SlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -114,15 +173,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/sites/$siteId': {
+      id: '/admin/sites/$siteId'
+      path: '/sites/$siteId'
+      fullPath: '/admin/sites/$siteId'
+      preLoaderRoute: typeof AdminSitesSiteIdRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
   }
 }
 
 interface AdminRouteRouteChildren {
+  AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminSitesSiteIdRoute: typeof AdminSitesSiteIdRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminSitesSiteIdRoute: AdminSitesSiteIdRoute,
 }
 
 const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
@@ -132,6 +209,7 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
+  SlugRoute: SlugRoute,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
 }

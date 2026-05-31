@@ -7,6 +7,7 @@ export interface SessionUser {
   name: string;
   email: string;
   image: string | null;
+  role: string;
 }
 
 // Server function: resolves the current session from the request cookies.
@@ -23,6 +24,7 @@ export const fetchSession = createServerFn({ method: "GET" }).handler(
         name: session.user.name,
         email: session.user.email,
         image: session.user.image ?? null,
+        role: (session.user as { role?: string }).role ?? "member",
       },
     };
   },

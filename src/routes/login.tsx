@@ -18,13 +18,13 @@ export const Route = createFileRoute("/login")({
     const session = await fetchSession();
     if (session) throw redirect({ to: "/admin" });
   },
-  head: () => ({ meta: [{ title: "Sign in" }] }),
+  head: () => ({ meta: [{ title: "Anmelden" }] }),
   component: LoginPage,
 });
 
 const schema = v.object({
-  email: v.pipe(v.string(), v.email("Enter a valid email")),
-  password: v.pipe(v.string(), v.minLength(1, "Enter your password")),
+  email: v.pipe(v.string(), v.email("Bitte eine gültige E-Mail eingeben")),
+  password: v.pipe(v.string(), v.minLength(1, "Bitte Passwort eingeben")),
 });
 
 function LoginPage() {
@@ -37,14 +37,14 @@ function LoginPage() {
     e.preventDefault();
     const parsed = v.safeParse(schema, { email, password });
     if (!parsed.success) {
-      toast.error(parsed.issues[0]?.message ?? "Invalid input");
+      toast.error(parsed.issues[0]?.message ?? "Ungültige Eingabe");
       return;
     }
     setLoading(true);
     const { error } = await signIn.email({ email, password });
     setLoading(false);
     if (error) {
-      toast.error(error.message ?? "Could not sign in");
+      toast.error(error.message ?? "Anmeldung fehlgeschlagen");
       return;
     }
     await router.navigate({ to: "/admin" });
@@ -54,13 +54,13 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-muted)] px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl">Sign in</CardTitle>
-          <CardDescription>Access the admin dashboard.</CardDescription>
+          <CardTitle className="text-xl">Anmelden</CardTitle>
+          <CardDescription>Zugang zur Verwaltung.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">E-Mail</Label>
               <Input
                 id="email"
                 type="email"
@@ -71,7 +71,7 @@ function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Passwort</Label>
               <Input
                 id="password"
                 type="password"
@@ -82,12 +82,12 @@ function LoginPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              <LogIn /> {loading ? "Signing in..." : "Sign in"}
+              <LogIn /> {loading ? "Anmeldung läuft..." : "Anmelden"}
             </Button>
           </form>
           <p className="mt-4 text-center text-xs text-[var(--color-muted-foreground)]">
             <Link to="/" className="hover:underline">
-              Back to site
+              Zurück zur Startseite
             </Link>
           </p>
         </CardContent>

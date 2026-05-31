@@ -15,14 +15,14 @@ export const Route = createFileRoute("/setup")({
     const { needsSetup } = await client.meta.needsSetup();
     if (!needsSetup) throw redirect({ to: "/login" });
   },
-  head: () => ({ meta: [{ title: "Set up ucms" }] }),
+  head: () => ({ meta: [{ title: "ucms einrichten" }] }),
   component: SetupPage,
 });
 
 const schema = v.object({
-  name: v.pipe(v.string(), v.minLength(1, "Enter your name")),
-  email: v.pipe(v.string(), v.email("Enter a valid email")),
-  password: v.pipe(v.string(), v.minLength(8, "Use at least 8 characters")),
+  name: v.pipe(v.string(), v.minLength(1, "Bitte Namen eingeben")),
+  email: v.pipe(v.string(), v.email("Bitte eine gültige E-Mail eingeben")),
+  password: v.pipe(v.string(), v.minLength(8, "Mindestens 8 Zeichen verwenden")),
 });
 
 function SetupPage() {
@@ -36,17 +36,17 @@ function SetupPage() {
     e.preventDefault();
     const parsed = v.safeParse(schema, { name, email, password });
     if (!parsed.success) {
-      toast.error(parsed.issues[0]?.message ?? "Invalid input");
+      toast.error(parsed.issues[0]?.message ?? "Ungültige Eingabe");
       return;
     }
     setLoading(true);
     const { error } = await signUp.email({ name, email, password });
     setLoading(false);
     if (error) {
-      toast.error(error.message ?? "Could not create the account");
+      toast.error(error.message ?? "Konto konnte nicht erstellt werden");
       return;
     }
-    toast.success("Admin account created");
+    toast.success("Administrator-Konto erstellt");
     await router.navigate({ to: "/admin" });
   }
 
@@ -54,9 +54,9 @@ function SetupPage() {
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-muted)] px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl">Welcome to ucms</CardTitle>
+          <CardTitle className="text-xl">Willkommen bei ucms</CardTitle>
           <CardDescription>
-            Create the administrator account. This is a one-time step.
+            Lege das Administrator-Konto an. Das ist nur einmal nötig.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -66,7 +66,7 @@ function SetupPage() {
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">E-Mail</Label>
               <Input
                 id="email"
                 type="email"
@@ -77,7 +77,7 @@ function SetupPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Passwort</Label>
               <Input
                 id="password"
                 type="password"
@@ -88,7 +88,7 @@ function SetupPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              <UserPlus /> {loading ? "Creating..." : "Create admin account"}
+              <UserPlus /> {loading ? "Wird erstellt..." : "Administrator-Konto erstellen"}
             </Button>
           </form>
         </CardContent>
