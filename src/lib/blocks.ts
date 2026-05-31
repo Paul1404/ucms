@@ -274,12 +274,16 @@ function newId(): string {
     : Math.random().toString(36).slice(2);
 }
 
-// Copy a block for insertion: give it a fresh id and nudge every breakpoint
-// frame diagonally, so a duplicated or pasted block does not land exactly on
-// top of its source. Used by both the duplicate action and paste.
-export function cloneBlock(block: Block): Block {
+// Copy a block for insertion: give it a fresh id and shift every breakpoint
+// frame by `offset`, so a duplicated or pasted block does not land exactly on
+// top of its source. The default offset nudges it diagonally; paste passes an
+// explicit offset to drop the copy at the cursor.
+export function cloneBlock(
+  block: Block,
+  offset: { x: number; y: number } = { x: GRID * 2, y: GRID * 2 },
+): Block {
   const shift = (f: Frame | undefined): Frame | undefined =>
-    f ? { ...f, x: f.x + GRID * 2, y: f.y + GRID * 2 } : undefined;
+    f ? { ...f, x: Math.max(0, f.x + offset.x), y: Math.max(0, f.y + offset.y) } : undefined;
   return {
     ...block,
     id: newId(),
@@ -290,11 +294,12 @@ export function cloneBlock(block: Block): Block {
 }
 
 // Clone several blocks at once, remapping group ids so a duplicated or pasted
-// selection stays grouped together but stays distinct from the originals.
-export function cloneMany(blocks: Block[]): Block[] {
+// selection stays grouped together but stays distinct from the originals. Every
+// block shifts by the same offset, so the group keeps its relative layout.
+export function cloneMany(blocks: Block[], offset?: { x: number; y: number }): Block[] {
   const remap = new Map<string, string>();
   return blocks.map((b) => {
-    const copy = cloneBlock(b);
+    const copy = cloneBlock(b, offset);
     if (b.group) {
       let g = remap.get(b.group);
       if (!g) {
@@ -304,6 +309,23 @@ export function cloneMany(blocks: Block[]): Block[] {
       return { ...copy, group: g } as Block;
     }
     return copy;
+  });
+}
+
+// Reassign z on the given device so the stacking matches an explicit top-to-
+// bottom order of block ids (the first id ends up on top). Blocks not named in
+// the order keep their place. Used by the layers panel to reorder.
+export function applyLayerOrder(
+  blocks: Block[],
+  orderTopToBottom: string[],
+  device: Device,
+): Block[] {
+  const n = orderTopToBottom.length;
+  const zById = new Map(orderTopToBottom.map((id, i) => [id, n - i]));
+  return blocks.map((b) => {
+    const z = zById.get(b.id);
+    if (z === undefined) return b;
+    return setFrame(b, device, { ...getFrame(b, device), z });
   });
 }
 

@@ -16,11 +16,12 @@ import {
   Users,
   Wand2,
 } from "lucide-react";
-import { type CSSProperties, useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BlockInspector } from "@/components/editor/block-inspector";
 import { ChromeDialog } from "@/components/editor/chrome-dialog";
 import { FreeCanvas } from "@/components/editor/free-canvas";
+import { LayersPanel } from "@/components/editor/layers-panel";
 import { MembersDialog } from "@/components/editor/members-dialog";
 import { MultiInspector } from "@/components/editor/multi-inspector";
 import { Palette } from "@/components/editor/palette";
@@ -30,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type AlignMode, alignFrames, type DistributeAxis, distributeFrames } from "@/lib/arrange";
 import {
+  applyLayerOrder,
   type Block,
   type BlockStyle,
   type BlockType,
@@ -43,6 +45,7 @@ import {
   placeNewBlock,
   reflowFrame,
   setFrame as setDeviceFrame,
+  snap,
 } from "@/lib/blocks";
 import type { Footer, Header } from "@/lib/chrome";
 import { readClipboard, writeClipboard } from "@/lib/clipboard";
@@ -109,6 +112,9 @@ function Editor() {
   const [device, setDevice] = useState<Device>("desktop");
   const [dialog, setDialog] = useState<"settings" | "chrome" | "members" | null>(null);
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(initial));
+  // Last cursor position over the canvas in design coordinates, so paste can
+  // drop blocks under the pointer. A ref avoids re-rendering on every move.
+  const pointerRef = useRef<{ x: number; y: number } | null>(null);
 
   const heightKey =
     device === "tablet"
@@ -197,6 +203,24 @@ function Editor() {
     patchSelected((b) => ({ ...b, style: { ...(b.style ?? {}), hidden: hide } }) as Block);
   }
 
+  // Toggle one block's visibility regardless of the current selection (used by
+  // the layers panel).
+  function toggleHiddenId(id: string) {
+    setBlocks(
+      state.blocks.map((b) =>
+        b.id === id
+          ? ({ ...b, style: { ...(b.style ?? {}), hidden: !b.style?.hidden } } as Block)
+          : b,
+      ),
+    );
+  }
+
+  // Restack every block so the canvas matches an explicit top-to-bottom layer
+  // order (the layers panel reorders by z on the current breakpoint).
+  function reorderLayers(orderTopToBottom: string[]) {
+    setBlocks(applyLayerOrder(state.blocks, orderTopToBottom, device));
+  }
+
   // Clipboard: copy/cut put the whole selection on the editor clipboard (in
   // memory and mirrored to localStorage so it survives a reload and works
   // across sites); paste inserts fresh copies and selects them.
@@ -218,7 +242,16 @@ function Editor() {
   function pasteClipboard() {
     const source = readClipboard();
     if (source.length === 0) return;
-    const copies = cloneMany(source);
+    // Drop the paste under the cursor when it is over the canvas, aligning the
+    // selection's top-left to the pointer; otherwise nudge it off the original.
+    const pos = pointerRef.current;
+    let offset: { x: number; y: number } | undefined;
+    if (pos) {
+      const minX = Math.min(...source.map((b) => getFrame(b, device).x));
+      const minY = Math.min(...source.map((b) => getFrame(b, device).y));
+      offset = { x: snap(pos.x - minX), y: snap(pos.y - minY) };
+    }
+    const copies = cloneMany(source, offset);
     setBlocks([...state.blocks, ...copies]);
     setSelectedIds(copies.map((b) => b.id));
     toast.success(copies.length > 1 ? `${copies.length} Elemente eingefügt` : "Element eingefügt");
@@ -563,6 +596,20 @@ function Editor() {
             Abschnitt hinzufügen
           </p>
           <Palette onAdd={addBlock} />
+
+          <div className="mt-5">
+            <p className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
+              Ebenen
+            </p>
+            <LayersPanel
+              blocks={state.blocks}
+              device={device}
+              selectedIds={selectedIds}
+              onSelect={selectBlock}
+              onReorder={reorderLayers}
+              onToggleHidden={toggleHiddenId}
+            />
+          </div>
         </aside>
 
         <main className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
@@ -579,6 +626,9 @@ function Editor() {
               onDuplicate={duplicateSelected}
               onDelete={deleteSelected}
               onToggleHidden={toggleHiddenSelected}
+              onHoverCanvas={(p) => {
+                pointerRef.current = p;
+              }}
             />
             <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-xs text-[var(--color-muted-foreground)]">
               <span>

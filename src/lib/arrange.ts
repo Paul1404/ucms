@@ -78,3 +78,47 @@ type Box = { x: number; y: number; w: number; h: number };
 export function framesIntersect(a: Box, b: Box): boolean {
   return !(a.x > b.x + b.w || a.x + a.w < b.x || a.y > b.y + b.h || a.y + a.h < b.y);
 }
+
+const DEFAULT_SNAP = 6;
+
+function nearest(value: number, candidates: number[], threshold: number): number | null {
+  let best: number | null = null;
+  for (const c of candidates) {
+    const d = c - value;
+    if (Math.abs(d) <= threshold && (best === null || Math.abs(d) < Math.abs(best))) best = d;
+  }
+  return best;
+}
+
+export type DimensionSnap = {
+  // Shift to apply to the dimension (0 when nothing snapped).
+  delta: number;
+  // The guide line the moving edge aligned to, or null for a size match.
+  line: number | null;
+  // True when the snap matched a sibling's size rather than a guide line.
+  matched: boolean;
+  // Whether any snap applied (the caller grid-snaps when false).
+  snapped: boolean;
+};
+
+// Decide how a resized dimension should snap. A dimension can either align its
+// moving edge to a guide line (a neighbour's edge, the canvas center) or take a
+// sibling's exact size, whichever is nearer. Edge alignment draws a guide; a
+// size match is reported via `matched` so the UI can flag it.
+export function snapDimension(
+  value: number,
+  edge: number,
+  lines: number[],
+  sizes: number[],
+  threshold = DEFAULT_SNAP,
+): DimensionSnap {
+  const edgeDelta = nearest(edge, lines, threshold);
+  const sizeDelta = nearest(value, sizes, threshold);
+  if (edgeDelta !== null && (sizeDelta === null || Math.abs(edgeDelta) <= Math.abs(sizeDelta))) {
+    return { delta: edgeDelta, line: edge + edgeDelta, matched: false, snapped: true };
+  }
+  if (sizeDelta !== null) {
+    return { delta: sizeDelta, line: null, matched: true, snapped: true };
+  }
+  return { delta: 0, line: null, matched: false, snapped: false };
+}

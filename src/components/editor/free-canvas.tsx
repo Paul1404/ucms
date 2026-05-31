@@ -2,7 +2,7 @@ import { Copy, Eye, EyeOff, Move, Trash2 } from "lucide-react";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { BlockView, CanvasModeContext } from "@/components/blocks/block-view";
 import { framePosition, frameVisual } from "@/components/blocks/canvas-view";
-import { framesIntersect } from "@/lib/arrange";
+import { framesIntersect, snapDimension } from "@/lib/arrange";
 import {
   type Block,
   BREAKPOINTS,
@@ -34,6 +34,9 @@ interface Props {
   onDuplicate: () => void;
   onDelete: () => void;
   onToggleHidden: () => void;
+  // Reports the cursor position in design coordinates while hovering the canvas
+  // (null on leave), so paste can drop blocks under the cursor.
+  onHoverCanvas?: (pos: { x: number; y: number } | null) => void;
 }
 
 type BlockDrag = {
@@ -46,6 +49,9 @@ type BlockDrag = {
   origs: Map<string, Frame>;
   vlines: number[];
   hlines: number[];
+  // Sibling widths/heights, so a resize can snap to match a neighbour's size.
+  wsizes: number[];
+  hsizes: number[];
   moved: boolean;
   // When a click (no drag) lands on a block that was already part of a larger
   // selection, collapse the selection down to just that block on pointer-up.
@@ -96,6 +102,7 @@ export function FreeCanvas({
   onDuplicate,
   onDelete,
   onToggleHidden,
+  onHoverCanvas,
 }: Props) {
   const designWidth = BREAKPOINTS[device].width;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -126,6 +133,14 @@ export function FreeCanvas({
   const [marquee, setMarquee] = useState<Rect | null>(null);
   const marqueeRef = useRef<Rect | null>(null);
   marqueeRef.current = marquee;
+  // Live size readout shown next to the resize handle, with flags for whether a
+  // dimension is currently snapped to match a sibling.
+  const [sizeBadge, setSizeBadge] = useState<{
+    w: number;
+    h: number;
+    matchW: boolean;
+    matchH: boolean;
+  } | null>(null);
 
   // Translate a client point into design-space coordinates on the canvas.
   function toDesign(clientX: number, clientY: number): { x: number; y: number } {
@@ -201,26 +216,38 @@ export function FreeCanvas({
         for (const [id, of] of d.origs) {
           next.set(id, { ...of, x: Math.max(0, of.x + ddx), y: Math.max(0, of.y + ddy) });
         }
+        setSizeBadge(null);
       } else {
         const o = d.origs.get(d.primary);
         if (!o) return;
         let w = Math.max(GRID * 6, o.w + dx);
         let h = Math.max(GRID * 4, o.h + dy);
-        const sx = nearestSnap([o.x + w], d.vlines);
-        const sy = nearestSnap([o.y + h], d.hlines);
-        if (sx) {
-          w += sx.delta;
-          activeX.push(sx.line);
+        // Each dimension snaps either to a guide line (the right/bottom edge
+        // aligning to a neighbour) or to a sibling's exact size, whichever is
+        // nearer. Edge snaps draw a guide; size matches light up the badge.
+        const ws = snapDimension(w, o.x + w, d.vlines, d.wsizes, SNAP_T);
+        if (ws.snapped) {
+          w += ws.delta;
+          if (ws.line !== null) activeX.push(ws.line);
         } else {
           w = snap(w);
         }
-        if (sy) {
-          h += sy.delta;
-          activeY.push(sy.line);
+        const hs = snapDimension(h, o.y + h, d.hlines, d.hsizes, SNAP_T);
+        if (hs.snapped) {
+          h += hs.delta;
+          if (hs.line !== null) activeY.push(hs.line);
         } else {
           h = snap(h);
         }
-        next.set(d.primary, { ...o, w: Math.max(GRID * 6, w), h: Math.max(GRID * 4, h) });
+        w = Math.max(GRID * 6, w);
+        h = Math.max(GRID * 4, h);
+        next.set(d.primary, { ...o, w, h });
+        setSizeBadge({
+          w: Math.round(w),
+          h: Math.round(h),
+          matchW: ws.matched,
+          matchH: hs.matched,
+        });
       }
 
       previewRef.current = next;
@@ -263,6 +290,7 @@ export function FreeCanvas({
       previewRef.current = null;
       setPreview(null);
       setGuides({ x: [], y: [] });
+      setSizeBadge(null);
     }
 
     window.addEventListener("pointermove", onMove);
@@ -293,6 +321,8 @@ export function FreeCanvas({
     const moving = new Set(ids);
     const vlines = new Set<number>([0, designWidth / 2, designWidth]);
     const hlines = new Set<number>([0, height / 2, height]);
+    const wsizes = new Set<number>();
+    const hsizes = new Set<number>();
     for (const b of blocksRef.current) {
       if (moving.has(b.id) || b.style?.hidden) continue;
       const f = getFrame(b, device);
@@ -304,6 +334,8 @@ export function FreeCanvas({
         .add(f.y)
         .add(f.y + f.h / 2)
         .add(f.y + f.h);
+      wsizes.add(f.w);
+      hsizes.add(f.h);
     }
     const origs = new Map<string, Frame>();
     for (const id of ids) {
@@ -320,6 +352,8 @@ export function FreeCanvas({
       origs,
       vlines: [...vlines],
       hlines: [...hlines],
+      wsizes: [...wsizes],
+      hsizes: [...hsizes],
       moved: false,
       collapse,
     };
@@ -355,6 +389,11 @@ export function FreeCanvas({
           backgroundSize: `${GRID * 3 * scale}px ${GRID * 3 * scale}px`,
         }}
         onPointerDown={startMarquee}
+        onPointerMove={(e) => {
+          if (dragRef.current || !onHoverCanvas) return;
+          onHoverCanvas(toDesign(e.clientX, e.clientY));
+        }}
+        onPointerLeave={() => onHoverCanvas?.(null)}
       >
         <div
           style={{
@@ -451,6 +490,21 @@ export function FreeCanvas({
                           onPointerDown={(e) => startDrag(e, block, "resize")}
                           className="absolute -bottom-1.5 -right-1.5 z-50 size-4 cursor-nwse-resize rounded-sm border-2 border-[var(--color-primary)] bg-[var(--color-background)]"
                         />
+                      ) : null}
+                      {/* Live dimensions while resizing; a snapped axis lights up */}
+                      {sizeBadge ? (
+                        <div
+                          data-no-drag
+                          className="pointer-events-none absolute -bottom-7 right-0 z-50 flex gap-1 rounded bg-[var(--color-foreground)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-background)] shadow"
+                        >
+                          <span className={sizeBadge.matchW ? "text-[var(--color-primary)]" : ""}>
+                            {sizeBadge.w}
+                          </span>
+                          <span>×</span>
+                          <span className={sizeBadge.matchH ? "text-[var(--color-primary)]" : ""}>
+                            {sizeBadge.h}
+                          </span>
+                        </div>
                       ) : null}
                     </>
                   ) : null}

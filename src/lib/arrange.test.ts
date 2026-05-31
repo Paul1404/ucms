@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alignFrames, distributeFrames, framesIntersect } from "./arrange";
+import { alignFrames, distributeFrames, framesIntersect, snapDimension } from "./arrange";
 import type { Frame } from "./blocks";
 
 const f = (x: number, y: number, w: number, h: number): Frame => ({ x, y, w, h, z: 1 });
@@ -74,5 +74,32 @@ describe("framesIntersect", () => {
 
   it("detects separation", () => {
     expect(framesIntersect(f(0, 0, 10, 10), f(100, 100, 10, 10))).toBe(false);
+  });
+});
+
+describe("snapDimension", () => {
+  it("aligns the moving edge to a nearby guide line", () => {
+    // edge at 316, a guide line at 320 within threshold -> shift +4
+    const r = snapDimension(196, 316, [320], []);
+    expect(r).toMatchObject({ delta: 4, line: 320, matched: false, snapped: true });
+  });
+
+  it("snaps the size to match a sibling when no edge line is near", () => {
+    // width 196 near sibling width 200, no guide line in range
+    const r = snapDimension(196, 316, [800], [200]);
+    expect(r).toMatchObject({ delta: 4, matched: true, snapped: true });
+    expect(r.line).toBeNull();
+  });
+
+  it("prefers the nearer of an edge line and a size match", () => {
+    // edge delta would be +5 (to 321), size delta would be +1 (to 200)
+    const r = snapDimension(199, 316, [321], [200]);
+    expect(r.matched).toBe(true);
+    expect(r.delta).toBe(1);
+  });
+
+  it("reports no snap when nothing is within threshold", () => {
+    const r = snapDimension(150, 270, [500], [400]);
+    expect(r).toMatchObject({ delta: 0, snapped: false, matched: false, line: null });
   });
 });

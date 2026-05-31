@@ -1,6 +1,7 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 import {
+  applyLayerOrder,
   BLOCK_LABELS,
   type Block,
   type BlockType,
@@ -157,6 +158,42 @@ describe("cloneMany", () => {
     const copies = cloneMany([a, b, ungrouped]);
     expect(copies[0]?.group).not.toBe(copies[1]?.group);
     expect(copies[2]?.group).toBeUndefined();
+  });
+
+  it("shifts every block by an explicit offset, preserving relative layout", () => {
+    const a = { ...createBlock("text"), frame: { x: 100, y: 100, w: 200, h: 100, z: 1 } } as Block;
+    const b = { ...createBlock("text"), frame: { x: 400, y: 160, w: 200, h: 100, z: 1 } } as Block;
+    const copies = cloneMany([a, b], { x: 50, y: -20 });
+    expect(copies[0]?.frame).toMatchObject({ x: 150, y: 80 });
+    expect(copies[1]?.frame).toMatchObject({ x: 450, y: 140 });
+  });
+
+  it("never moves a frame to a negative coordinate", () => {
+    const a = { ...createBlock("text"), frame: { x: 10, y: 10, w: 200, h: 100, z: 1 } } as Block;
+    const copies = cloneMany([a], { x: -50, y: -50 });
+    expect(copies[0]?.frame).toMatchObject({ x: 0, y: 0 });
+  });
+});
+
+describe("applyLayerOrder", () => {
+  const make = (id: string, z: number): Block =>
+    ({ ...createBlock("text"), id, frame: { x: 0, y: 0, w: 100, h: 100, z } }) as Block;
+
+  it("reassigns z so the stacking matches the given top-to-bottom order", () => {
+    const blocks = [make("a", 1), make("b", 2), make("c", 3)];
+    const out = applyLayerOrder(blocks, ["c", "a", "b"], "desktop");
+    const z = (id: string) => getFrame(out.find((x) => x.id === id) as Block, "desktop").z;
+    // First in the order is on top (highest z).
+    expect(z("c")).toBeGreaterThan(z("a") ?? 0);
+    expect(z("a")).toBeGreaterThan(z("b") ?? 0);
+  });
+
+  it("only writes the targeted breakpoint", () => {
+    const blocks = [make("a", 1), make("b", 2)];
+    const out = applyLayerOrder(blocks, ["a", "b"], "mobile");
+    const a = out.find((x) => x.id === "a") as Block;
+    expect(a.frameMobile).toBeDefined();
+    expect(a.frame).toEqual(blocks[0]?.frame);
   });
 });
 
