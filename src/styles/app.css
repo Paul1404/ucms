@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.21 0.02 264);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.02 264);
+  --muted: oklch(0.97 0.01 264);
+  --muted-foreground: oklch(0.55 0.02 264);
+  --border: oklch(0.92 0.01 264);
+  --input: oklch(0.92 0.01 264);
+  --primary: oklch(0.55 0.21 264);
+  --primary-foreground: oklch(0.98 0.01 264);
+  --accent: oklch(0.97 0.01 264);
+  --accent-foreground: oklch(0.21 0.02 264);
+  --destructive: oklch(0.58 0.24 27);
+  --destructive-foreground: oklch(0.98 0.01 264);
+  --ring: oklch(0.55 0.21 264);
+  --radius: 0.65rem;
+}
+
+.dark {
+  --background: oklch(0.18 0.02 264);
+  --foreground: oklch(0.97 0.01 264);
+  --card: oklch(0.22 0.02 264);
+  --card-foreground: oklch(0.97 0.01 264);
+  --muted: oklch(0.27 0.02 264);
+  --muted-foreground: oklch(0.7 0.02 264);
+  --border: oklch(0.3 0.02 264);
+  --input: oklch(0.3 0.02 264);
+  --primary: oklch(0.65 0.19 264);
+  --primary-foreground: oklch(0.18 0.02 264);
+  --accent: oklch(0.3 0.02 264);
+  --accent-foreground: oklch(0.97 0.01 264);
+  --destructive: oklch(0.62 0.24 27);
+  --destructive-foreground: oklch(0.98 0.01 264);
+  --ring: oklch(0.65 0.19 264);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-ring: var(--ring);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Inline click-to-edit text on the editor canvas */
+.inline-editable {
+  outline: none;
+  border-radius: 4px;
+  cursor: text;
+  transition: box-shadow 0.12s ease;
+  min-width: 1ch;
+}
+.inline-editable:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, currentColor 25%, transparent);
+}
+.inline-editable:focus {
+  box-shadow: inset 0 0 0 2px var(--color-ring);
+}
+.inline-editable:empty::before {
+  content: attr(data-placeholder);
+  opacity: 0.45;
+}
