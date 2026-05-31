@@ -3,7 +3,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
 import { CanvasView } from "@/components/blocks/canvas-view";
 import { SiteChrome } from "@/components/blocks/site-chrome";
-import { DEFAULT_CANVAS_HEIGHT } from "@/lib/blocks";
+import { BREAKPOINTS } from "@/lib/blocks";
 import { defaultFooter, defaultHeader } from "@/lib/chrome";
 import { orpc } from "@/lib/orpc";
 import { fontStack } from "@/lib/theme";
@@ -52,7 +52,10 @@ function PublicSite() {
 
   const header = site.header ?? defaultHeader(site.name);
   const footer = site.footer ?? defaultFooter(site.name);
-  const height = site.canvasHeight ?? DEFAULT_CANVAS_HEIGHT;
+
+  const desktopH = site.canvasHeight ?? BREAKPOINTS.desktop.height;
+  const tabletH = site.canvasHeightTablet ?? desktopH;
+  const mobileH = site.canvasHeightMobile ?? desktopH;
 
   return (
     <div style={themeStyle}>
@@ -62,7 +65,19 @@ function PublicSite() {
             <h1 className="text-3xl font-semibold">{site.name}</h1>
           </div>
         ) : (
-          <CanvasView blocks={site.blocks} height={height} />
+          <>
+            {/* One layout per breakpoint, shown by CSS so SSR picks the right
+                one with no flash. */}
+            <div className="block sm:hidden">
+              <CanvasView blocks={site.blocks} device="mobile" height={mobileH} />
+            </div>
+            <div className="hidden sm:block lg:hidden">
+              <CanvasView blocks={site.blocks} device="tablet" height={tabletH} />
+            </div>
+            <div className="hidden lg:block">
+              <CanvasView blocks={site.blocks} device="desktop" height={desktopH} />
+            </div>
+          </>
         )}
       </SiteChrome>
     </div>

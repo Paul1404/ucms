@@ -45,6 +45,8 @@ const SiteInput = v.object({
   header: headerSchema,
   footer: footerSchema,
   canvasHeight: v.optional(v.pipe(v.number(), v.minValue(200)), DEFAULT_CANVAS_HEIGHT),
+  canvasHeightTablet: v.optional(v.pipe(v.number(), v.minValue(200))),
+  canvasHeightMobile: v.optional(v.pipe(v.number(), v.minValue(200))),
 });
 
 async function loadSite(id: string) {
@@ -79,6 +81,8 @@ export const siteRouter = {
       header: row.header ?? defaultHeader(row.name),
       footer: row.footer ?? defaultFooter(row.name),
       canvasHeight: row.publishedHeight ?? row.canvasHeight,
+      canvasHeightTablet: row.publishedHeightTablet ?? row.canvasHeightTablet,
+      canvasHeightMobile: row.publishedHeightMobile ?? row.canvasHeightMobile,
     };
   }),
 
@@ -129,6 +133,8 @@ export const siteRouter = {
         header: row.header ?? defaultHeader(row.name),
         footer: row.footer ?? defaultFooter(row.name),
         canvasHeight: row.canvasHeight,
+        canvasHeightTablet: row.canvasHeightTablet,
+        canvasHeightMobile: row.canvasHeightMobile,
         hasPublished: Boolean(row.published),
         isOwner: row.ownerId === context.user.id,
       };
@@ -173,10 +179,16 @@ export const siteRouter = {
   // Save the draft without publishing.
   save: protectedProcedure.input(SiteInput).handler(async ({ input, context }) => {
     await requireEdit(context.user, input.id);
-    const { id, blocks, canvasHeight, ...meta } = input;
+    const { id, blocks, canvasHeightTablet, canvasHeightMobile, ...meta } = input;
     await db
       .update(sites)
-      .set({ ...meta, draft: blocks, canvasHeight, updatedAt: new Date() })
+      .set({
+        ...meta,
+        draft: blocks,
+        canvasHeightTablet: canvasHeightTablet ?? null,
+        canvasHeightMobile: canvasHeightMobile ?? null,
+        updatedAt: new Date(),
+      })
       .where(eq(sites.id, id));
     return { ok: true };
   }),
@@ -184,7 +196,7 @@ export const siteRouter = {
   // Save the draft and publish it to the public site.
   publish: protectedProcedure.input(SiteInput).handler(async ({ input, context }) => {
     await requireEdit(context.user, input.id);
-    const { id, blocks, canvasHeight, ...meta } = input;
+    const { id, blocks, canvasHeight, canvasHeightTablet, canvasHeightMobile, ...meta } = input;
     await db
       .update(sites)
       .set({
@@ -192,7 +204,11 @@ export const siteRouter = {
         draft: blocks,
         published: blocks,
         canvasHeight,
+        canvasHeightTablet: canvasHeightTablet ?? null,
+        canvasHeightMobile: canvasHeightMobile ?? null,
         publishedHeight: canvasHeight,
+        publishedHeightTablet: canvasHeightTablet ?? null,
+        publishedHeightMobile: canvasHeightMobile ?? null,
         updatedAt: new Date(),
       })
       .where(eq(sites.id, id));

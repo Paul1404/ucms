@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from "lucide-react";
+import { ArrowDownToLine, ArrowUpToLine, Plus, RotateCcw, Trash2 } from "lucide-react";
 import {
   ColorField,
   NumberField,
@@ -14,8 +14,13 @@ import {
   BLOCK_LABELS,
   type Block,
   type BlockStyle,
+  BREAKPOINTS,
+  type Device,
   type Frame,
+  getFrame,
+  hasOwnFrame,
   IMAGE_SIZES,
+  setFrame as setDeviceFrame,
 } from "@/lib/blocks";
 
 const alignOptions = ALIGNMENTS.map((a) => ({
@@ -27,7 +32,6 @@ const sizeOptions = IMAGE_SIZES.map((s) => ({
   label: { normal: "Normal", wide: "Breit", full: "Volle Breite" }[s],
 }));
 
-const DEFAULT_FRAME: Frame = { x: 80, y: 40, w: 400, h: 200, z: 1 };
 const DEFAULT_STYLE: BlockStyle = {
   bg: "",
   color: "",
@@ -36,22 +40,37 @@ const DEFAULT_STYLE: BlockStyle = {
   opacity: 100,
   shadow: false,
   border: false,
+  hidden: false,
 };
 
 export function BlockInspector({
   block,
+  device,
   onChange,
+  onBringToFront,
+  onSendToBack,
 }: {
   block: Block;
+  device: Device;
   onChange: (block: Block) => void;
+  onBringToFront: () => void;
+  onSendToBack: () => void;
 }) {
   const set = (patch: Partial<Block>) => onChange({ ...block, ...patch } as Block);
-  const frame = { ...DEFAULT_FRAME, ...block.frame };
+  const frame = getFrame(block, device);
   const style = { ...DEFAULT_STYLE, ...block.style };
   const setFrame = (patch: Partial<Frame>) =>
-    set({ frame: { ...frame, ...patch } } as Partial<Block>);
+    onChange(setDeviceFrame(block, device, { ...frame, ...patch }));
   const setStyle = (patch: Partial<BlockStyle>) =>
     set({ style: { ...style, ...patch } } as Partial<Block>);
+
+  // On tablet/mobile, drop the override so the block inherits the larger
+  // breakpoint's layout again.
+  const resetFrame = () => {
+    if (device === "tablet") onChange({ ...block, frameTablet: undefined } as Block);
+    else if (device === "mobile") onChange({ ...block, frameMobile: undefined } as Block);
+  };
+  const overridden = device !== "desktop" && hasOwnFrame(block, device);
 
   return (
     <div className="space-y-5">
@@ -65,23 +84,40 @@ export function BlockInspector({
       <div className="space-y-4">{renderFields(block, set)}</div>
 
       <div className="space-y-3 border-t border-[var(--color-border)] pt-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
-          Position & Größe
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
+            Position & Größe
+          </p>
+          <span className="rounded-full bg-[var(--color-muted)] px-2 py-0.5 text-xs text-[var(--color-muted-foreground)]">
+            {BREAKPOINTS[device].label}
+          </span>
+        </div>
+        {device !== "desktop" ? (
+          <p className="text-xs text-[var(--color-muted-foreground)]">
+            {overridden
+              ? "Eigenes Layout für dieses Gerät."
+              : "Erbt das Layout vom größeren Gerät, bis du es hier änderst."}
+          </p>
+        ) : null}
         <div className="grid grid-cols-2 gap-2">
           <NumberField label="X" value={frame.x} onChange={(x) => setFrame({ x })} />
           <NumberField label="Y" value={frame.y} onChange={(y) => setFrame({ y })} />
           <NumberField label="Breite" value={frame.w} min={40} onChange={(w) => setFrame({ w })} />
           <NumberField label="Höhe" value={frame.h} min={20} onChange={(h) => setFrame({ h })} />
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <NumberField
-            label="Ebene (z)"
-            value={frame.z}
-            min={0}
-            onChange={(z) => setFrame({ z })}
-          />
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={onBringToFront}>
+            <ArrowUpToLine /> Nach vorne
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={onSendToBack}>
+            <ArrowDownToLine /> Nach hinten
+          </Button>
         </div>
+        {overridden ? (
+          <Button type="button" variant="ghost" size="sm" onClick={resetFrame}>
+            <RotateCcw /> Layout von Desktop übernehmen
+          </Button>
+        ) : null}
       </div>
 
       <div className="space-y-3 border-t border-[var(--color-border)] pt-4">

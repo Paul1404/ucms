@@ -9,12 +9,23 @@ export const PADDINGS = ["sm", "md", "lg"] as const;
 export const ALIGNMENTS = ["left", "center"] as const;
 export const IMAGE_SIZES = ["normal", "wide", "full"] as const;
 
-// The free-form canvas is laid out on a fixed design width. Every frame
-// coordinate is expressed in pixels relative to this width; the public page
-// scales the whole canvas to fit the viewport so what you build is what ships.
+// The free-form canvas is laid out on a fixed design width per breakpoint.
+// Every frame coordinate is in pixels relative to that breakpoint's width.
+// Each breakpoint renders at its own width so what you build is what ships and
+// text stays readable on mobile instead of being shrunk down.
 export const DESIGN_WIDTH = 1200;
 export const DEFAULT_CANVAS_HEIGHT = 1400;
 export const GRID = 8;
+
+export const DEVICES = ["desktop", "tablet", "mobile"] as const;
+export type Device = (typeof DEVICES)[number];
+
+// Design width and default canvas height for each breakpoint.
+export const BREAKPOINTS: Record<Device, { width: number; height: number; label: string }> = {
+  desktop: { width: 1200, height: 1400, label: "Desktop" },
+  tablet: { width: 810, height: 1200, label: "Tablet" },
+  mobile: { width: 390, height: 1600, label: "Mobil" },
+};
 
 // Absolute position and size of a block on the canvas.
 export const frameSchema = v.object({
@@ -34,17 +45,24 @@ export const blockStyleSchema = v.object({
   opacity: v.optional(v.number(), 100),
   shadow: v.optional(v.boolean(), false),
   border: v.optional(v.boolean(), false),
+  hidden: v.optional(v.boolean(), false),
 });
 
 const styleFields = {
   background: v.optional(v.picklist(BACKGROUNDS), "default"),
   padding: v.optional(v.picklist(PADDINGS), "lg"),
+  // Per-breakpoint layout. `frame` is the desktop base; tablet and mobile are
+  // optional overrides that inherit from the larger breakpoint when unset.
   frame: v.optional(frameSchema),
+  frameTablet: v.optional(frameSchema),
+  frameMobile: v.optional(frameSchema),
   style: v.optional(blockStyleSchema),
 };
 
 export type Frame = v.InferOutput<typeof frameSchema>;
 export type BlockStyle = v.InferOutput<typeof blockStyleSchema>;
+
+export const DEFAULT_FRAME: Frame = { x: 80, y: 40, w: 1040, h: 240, z: 1 };
 
 const idField = v.pipe(v.string(), v.minLength(1));
 
@@ -207,6 +225,41 @@ export type FaqBlock = v.InferOutput<typeof faqSchema>;
 export type TestimonialBlock = v.InferOutput<typeof testimonialSchema>;
 export type VideoBlock = v.InferOutput<typeof videoSchema>;
 export type MapBlock = v.InferOutput<typeof mapSchema>;
+
+// --- per-breakpoint layout helpers ---
+
+// The frame to display for a block at a given breakpoint. Tablet falls back to
+// desktop; mobile falls back to tablet, then desktop.
+export function getFrame(block: Block, device: Device): Frame {
+  if (device === "tablet") return block.frameTablet ?? block.frame ?? DEFAULT_FRAME;
+  if (device === "mobile")
+    return block.frameMobile ?? block.frameTablet ?? block.frame ?? DEFAULT_FRAME;
+  return block.frame ?? DEFAULT_FRAME;
+}
+
+// Whether a block has its own (non-inherited) frame at a breakpoint.
+export function hasOwnFrame(block: Block, device: Device): boolean {
+  if (device === "tablet") return Boolean(block.frameTablet);
+  if (device === "mobile") return Boolean(block.frameMobile);
+  return Boolean(block.frame);
+}
+
+// Write a frame for a specific breakpoint, leaving the others untouched.
+export function setFrame(block: Block, device: Device, frame: Frame): Block {
+  if (device === "tablet") return { ...block, frameTablet: frame };
+  if (device === "mobile") return { ...block, frameMobile: frame };
+  return { ...block, frame };
+}
+
+// Adapt a frame from one breakpoint width to another: scale x and width
+// proportionally, keep the vertical position and height. Content reflows inside
+// the narrower width without shrinking text.
+export function reflowFrame(frame: Frame, fromWidth: number, toWidth: number): Frame {
+  const r = toWidth / fromWidth;
+  const w = Math.min(toWidth, Math.max(GRID * 6, Math.round(frame.w * r)));
+  const x = Math.max(0, Math.min(toWidth - w, Math.round(frame.x * r)));
+  return { x: snap(x), y: snap(frame.y), w: snap(w), h: frame.h, z: frame.z };
+}
 
 function newId(): string {
   return typeof crypto !== "undefined" && crypto.randomUUID

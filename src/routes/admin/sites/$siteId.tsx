@@ -3,14 +3,18 @@ import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import {
   ArrowLeft,
   ExternalLink,
+  Monitor,
   PanelTop,
   Redo2,
   Rocket,
   Save,
   Settings,
+  Smartphone,
+  Tablet,
   TriangleAlert,
   Undo2,
   Users,
+  Wand2,
 } from "lucide-react";
 import { type CSSProperties, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -23,10 +27,23 @@ import { SiteSettingsDialog } from "@/components/editor/site-settings-dialog";
 import { useHistory } from "@/components/editor/use-history";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { type Block, type BlockType, createBlock, GRID, placeNewBlock } from "@/lib/blocks";
+import {
+  type Block,
+  type BlockType,
+  BREAKPOINTS,
+  createBlock,
+  type Device,
+  type Frame,
+  GRID,
+  getFrame,
+  placeNewBlock,
+  reflowFrame,
+  setFrame as setDeviceFrame,
+} from "@/lib/blocks";
 import type { Footer, Header } from "@/lib/chrome";
 import { orpc } from "@/lib/orpc";
 import { type FontChoice, fontStack } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/sites/$siteId")({
   loader: ({ context, params }) =>
@@ -46,6 +63,8 @@ interface EditorState {
   header: Header;
   footer: Footer;
   canvasHeight: number;
+  canvasHeightTablet: number;
+  canvasHeightMobile: number;
 }
 
 function isTextTarget(target: EventTarget | null): boolean {
@@ -74,12 +93,24 @@ function Editor() {
     header: data.header,
     footer: data.footer,
     canvasHeight: data.canvasHeight,
+    canvasHeightTablet: data.canvasHeightTablet ?? BREAKPOINTS.tablet.height,
+    canvasHeightMobile: data.canvasHeightMobile ?? BREAKPOINTS.mobile.height,
   };
 
   const { state, set, undo, redo, canUndo, canRedo } = useHistory<EditorState>(initial);
   const [selectedId, setSelectedId] = useState<string | null>(data.blocks[0]?.id ?? null);
+  const [device, setDevice] = useState<Device>("desktop");
   const [dialog, setDialog] = useState<"settings" | "chrome" | "members" | null>(null);
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(initial));
+
+  const heightKey =
+    device === "tablet"
+      ? "canvasHeightTablet"
+      : device === "mobile"
+        ? "canvasHeightMobile"
+        : "canvasHeight";
+  const currentHeight = state[heightKey];
+  const setCurrentHeight = (h: number) => set({ ...state, [heightKey]: Math.max(400, h) });
 
   const currentJson = JSON.stringify(state);
   const dirty = currentJson !== savedJson;
@@ -100,10 +131,15 @@ function Editor() {
   function duplicateBlock(id: string) {
     const original = state.blocks.find((b) => b.id === id);
     if (!original) return;
-    const frame = original.frame
-      ? { ...original.frame, x: original.frame.x + GRID * 2, y: original.frame.y + GRID * 2 }
-      : undefined;
-    const copy = { ...original, id: crypto.randomUUID(), frame } as Block;
+    const shift = (f: Frame | undefined) =>
+      f ? { ...f, x: f.x + GRID * 2, y: f.y + GRID * 2 } : undefined;
+    const copy = {
+      ...original,
+      id: crypto.randomUUID(),
+      frame: shift(original.frame),
+      frameTablet: shift(original.frameTablet),
+      frameMobile: shift(original.frameMobile),
+    } as Block;
     setBlocks([...state.blocks, copy]);
     setSelectedId(copy.id);
   }
@@ -111,6 +147,43 @@ function Editor() {
   function deleteBlock(id: string) {
     setBlocks(state.blocks.filter((b) => b.id !== id));
     if (selectedId === id) setSelectedId(null);
+  }
+
+  // Layering: set the selected block's z above or below all others on the
+  // current breakpoint.
+  function restack(id: string, where: "front" | "back") {
+    const block = state.blocks.find((b) => b.id === id);
+    if (!block) return;
+    const zs = state.blocks.map((b) => getFrame(b, device).z ?? 1);
+    const z = where === "front" ? Math.max(...zs) + 1 : Math.max(0, Math.min(...zs) - 1);
+    updateBlock(setDeviceFrame(block, device, { ...getFrame(block, device), z }));
+  }
+
+  // Move the selected block by a small step on the current breakpoint.
+  function nudge(id: string, dx: number, dy: number) {
+    const block = state.blocks.find((b) => b.id === id);
+    if (!block) return;
+    const f = getFrame(block, device);
+    updateBlock(
+      setDeviceFrame(block, device, { ...f, x: Math.max(0, f.x + dx), y: Math.max(0, f.y + dy) }),
+    );
+  }
+
+  // Auto-adapt every block's layout to the current breakpoint from its desktop
+  // frame, so a smaller screen starts from a sensible reflow.
+  function adaptToDevice() {
+    if (device === "desktop") return;
+    const toWidth = BREAKPOINTS[device].width;
+    setBlocks(
+      state.blocks.map((b) =>
+        setDeviceFrame(
+          b,
+          device,
+          reflowFrame(getFrame(b, "desktop"), BREAKPOINTS.desktop.width, toWidth),
+        ),
+      ),
+    );
+    toast.success(`Layout für ${BREAKPOINTS[device].label} angepasst`);
   }
 
   const payload = () => ({
@@ -124,6 +197,8 @@ function Editor() {
     header: state.header,
     footer: state.footer,
     canvasHeight: state.canvasHeight,
+    canvasHeightTablet: state.canvasHeightTablet,
+    canvasHeightMobile: state.canvasHeightMobile,
   });
 
   const save = useMutation(
@@ -186,11 +261,19 @@ function Editor() {
       if ((e.key === "Delete" || e.key === "Backspace") && !isTextTarget(e.target) && selectedId) {
         e.preventDefault();
         deleteBlock(selectedId);
+        return;
+      }
+      if (e.key.startsWith("Arrow") && !isTextTarget(e.target) && selectedId) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+        const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+        nudge(selectedId, dx, dy);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedId, undo, redo, state.blocks]);
+  }, [selectedId, undo, redo, state.blocks, device]);
 
   const blocker = useBlocker({
     shouldBlockFn: () => dirty,
@@ -247,6 +330,30 @@ function Editor() {
           >
             <Redo2 />
           </Button>
+        </div>
+
+        <div className="ml-2 hidden items-center gap-0.5 rounded-md border border-[var(--color-border)] p-0.5 md:flex">
+          <DeviceToggle
+            active={device === "desktop"}
+            label="Desktop"
+            onClick={() => setDevice("desktop")}
+          >
+            <Monitor className="size-4" />
+          </DeviceToggle>
+          <DeviceToggle
+            active={device === "tablet"}
+            label="Tablet"
+            onClick={() => setDevice("tablet")}
+          >
+            <Tablet className="size-4" />
+          </DeviceToggle>
+          <DeviceToggle
+            active={device === "mobile"}
+            label="Mobil"
+            onClick={() => setDevice("mobile")}
+          >
+            <Smartphone className="size-4" />
+          </DeviceToggle>
         </div>
 
         <div className="ml-auto flex items-center gap-2">
@@ -311,37 +418,53 @@ function Editor() {
           <div style={themeStyle} className="mx-auto max-w-5xl">
             <FreeCanvas
               blocks={state.blocks}
-              height={state.canvasHeight}
+              device={device}
+              height={currentHeight}
               selectedId={selectedId}
               onSelect={setSelectedId}
               onChange={updateBlock}
               onDuplicate={duplicateBlock}
               onDelete={deleteBlock}
             />
-            <div className="mt-3 flex items-center justify-center gap-2 text-xs text-[var(--color-muted-foreground)]">
-              <label htmlFor="canvas-height">Canvas-Höhe (px)</label>
-              <input
-                id="canvas-height"
-                type="number"
-                min={400}
-                step={40}
-                value={state.canvasHeight}
-                onChange={(e) =>
-                  set({ ...state, canvasHeight: Math.max(400, Number(e.target.value)) })
-                }
-                className="h-8 w-24 rounded-md border border-[var(--color-input)] bg-[var(--color-background)] px-2 text-center"
-              />
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-xs text-[var(--color-muted-foreground)]">
+              <span>
+                {BREAKPOINTS[device].label} · {BREAKPOINTS[device].width}px breit
+              </span>
+              <span className="flex items-center gap-2">
+                <label htmlFor="canvas-height">Höhe</label>
+                <input
+                  id="canvas-height"
+                  type="number"
+                  min={400}
+                  step={40}
+                  value={currentHeight}
+                  onChange={(e) => setCurrentHeight(Number(e.target.value))}
+                  className="h-8 w-24 rounded-md border border-[var(--color-input)] bg-[var(--color-background)] px-2 text-center"
+                />
+              </span>
+              {device !== "desktop" ? (
+                <Button type="button" variant="outline" size="sm" onClick={adaptToDevice}>
+                  <Wand2 /> An {BREAKPOINTS[device].label} anpassen
+                </Button>
+              ) : null}
             </div>
           </div>
         </main>
 
         <aside className="shrink-0 overflow-y-auto border-t border-[var(--color-border)] bg-[var(--color-background)] p-4 lg:w-80 lg:border-l lg:border-t-0">
           {selected ? (
-            <BlockInspector block={selected} onChange={updateBlock} />
+            <BlockInspector
+              block={selected}
+              device={device}
+              onChange={updateBlock}
+              onBringToFront={() => restack(selected.id, "front")}
+              onSendToBack={() => restack(selected.id, "back")}
+            />
           ) : (
             <p className="text-sm text-[var(--color-muted-foreground)]">
               Wähle ein Element aus, um es zu bearbeiten. Ziehe Elemente frei auf der Fläche und
-              passe Größe, Farben und Position an.
+              passe Größe, Farben und Position an. Über die Geräte-Symbole oben gestaltest du eigene
+              Layouts für Tablet und Mobil.
             </p>
           )}
         </aside>
@@ -408,5 +531,35 @@ function Editor() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function DeviceToggle({
+  active,
+  label,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      aria-pressed={active}
+      className={cn(
+        "rounded p-1.5 transition-colors",
+        active
+          ? "bg-[var(--color-accent)] text-[var(--color-foreground)]"
+          : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-accent)]",
+      )}
+    >
+      {children}
+    </button>
   );
 }

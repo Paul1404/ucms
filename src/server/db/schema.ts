@@ -83,7 +83,11 @@ export const sites = pgTable("sites", {
   header: jsonb("header").$type<Header | null>(),
   footer: jsonb("footer").$type<Footer | null>(),
   canvasHeight: integer("canvas_height").default(1400).notNull(),
+  canvasHeightTablet: integer("canvas_height_tablet"),
+  canvasHeightMobile: integer("canvas_height_mobile"),
   publishedHeight: integer("published_height"),
+  publishedHeightTablet: integer("published_height_tablet"),
+  publishedHeightMobile: integer("published_height_mobile"),
   ownerId: text("owner_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at")
     .$defaultFn(() => new Date())

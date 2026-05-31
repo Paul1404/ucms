@@ -1,10 +1,17 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
-import { type Block, DESIGN_WIDTH, type Frame } from "@/lib/blocks";
+import {
+  type Block,
+  BREAKPOINTS,
+  DEFAULT_FRAME,
+  type Device,
+  type Frame,
+  getFrame,
+} from "@/lib/blocks";
 import { BlockView, CanvasModeContext } from "./block-view";
 
 // Position styles for a block's frame wrapper.
 export function framePosition(frame: Frame | undefined): CSSProperties {
-  const f = frame ?? { x: 0, y: 0, w: DESIGN_WIDTH, h: 200, z: 1 };
+  const f = frame ?? DEFAULT_FRAME;
   return {
     position: "absolute",
     left: f.x,
@@ -34,7 +41,7 @@ export function frameVisual(block: Block): CSSProperties {
 // Measures the rendered width of an element so the canvas can scale to fit.
 function useElementWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
-  const [width, setWidth] = useState(DESIGN_WIDTH);
+  const [width, setWidth] = useState(0);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -47,17 +54,29 @@ function useElementWidth<T extends HTMLElement>() {
   return { ref, width };
 }
 
-// Read-only canvas for the public site. Renders the fixed-width design and
-// scales the whole thing to fit the viewport so it matches the editor exactly.
-export function CanvasView({ blocks, height }: { blocks: Block[]; height: number }) {
+// Read-only canvas for the public site at a single breakpoint. Renders the
+// breakpoint's fixed-width design and scales it to fit the container, so the
+// layout matches the editor and text keeps its size on smaller screens.
+export function CanvasView({
+  blocks,
+  device,
+  height,
+}: {
+  blocks: Block[];
+  device: Device;
+  height: number;
+}) {
+  const designWidth = BREAKPOINTS[device].width;
   const { ref, width } = useElementWidth<HTMLDivElement>();
-  const scale = Math.min(1, width / DESIGN_WIDTH);
+  // Before measurement (e.g. SSR) assume the design width so there is no flash.
+  const scale = width === 0 ? 1 : Math.min(1, width / designWidth);
+  const visible = blocks.filter((b) => !b.style?.hidden);
 
   return (
     <div ref={ref} style={{ width: "100%", height: height * scale, overflow: "hidden" }}>
       <div
         style={{
-          width: DESIGN_WIDTH,
+          width: designWidth,
           height,
           position: "relative",
           transform: `scale(${scale})`,
@@ -65,10 +84,13 @@ export function CanvasView({ blocks, height }: { blocks: Block[]; height: number
         }}
       >
         <CanvasModeContext.Provider value={true}>
-          {[...blocks]
-            .sort((a, b) => (a.frame?.z ?? 1) - (b.frame?.z ?? 1))
+          {[...visible]
+            .sort((a, b) => (getFrame(a, device).z ?? 1) - (getFrame(b, device).z ?? 1))
             .map((block) => (
-              <div key={block.id} style={{ ...framePosition(block.frame), ...frameVisual(block) }}>
+              <div
+                key={block.id}
+                style={{ ...framePosition(getFrame(block, device)), ...frameVisual(block) }}
+              >
                 <div className="h-full w-full overflow-hidden">
                   <BlockView block={block} />
                 </div>
