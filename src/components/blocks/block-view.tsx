@@ -1,8 +1,12 @@
 import { ImageIcon, Mail, MapPin, Phone, Quote, Video } from "lucide-react";
-import { createElement } from "react";
+import { createContext, createElement, useContext } from "react";
 import { InlineText } from "@/components/editor/inline-text";
 import { type Block, toEmbedUrl } from "@/lib/blocks";
 import { cn } from "@/lib/utils";
+
+// When true, blocks render to fill their absolute frame on the canvas instead
+// of as full-width stacked sections. Set by the canvas renderers.
+export const CanvasModeContext = createContext(false);
 
 const BG_CLASS: Record<string, string> = {
   default: "bg-[var(--color-background)] text-[var(--color-foreground)]",
@@ -23,7 +27,14 @@ export interface EditHandle {
   onChange: (block: Block) => void;
 }
 
+// In canvas mode (`bare`) the block fills its frame and the surrounding frame
+// wrapper supplies background, padding, and radius. In stack mode it renders as
+// a full-width section with the classic background/spacing presets.
 function Section({ block, children }: { block: Block; children: React.ReactNode }) {
+  const bare = useContext(CanvasModeContext);
+  if (bare) {
+    return <div className="flex h-full w-full flex-col justify-center">{children}</div>;
+  }
   return (
     <section
       className={cn(BG_CLASS[block.background ?? "default"], PAD_CLASS[block.padding ?? "lg"])}

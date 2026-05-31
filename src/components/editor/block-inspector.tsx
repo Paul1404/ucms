@@ -1,29 +1,42 @@
 import { Plus, Trash2 } from "lucide-react";
-import { SelectField, TextAreaField, TextField } from "@/components/editor/fields";
+import {
+  ColorField,
+  NumberField,
+  SelectField,
+  TextAreaField,
+  TextField,
+  ToggleField,
+} from "@/components/editor/fields";
 import { ImageField } from "@/components/editor/image-field";
 import { Button } from "@/components/ui/button";
 import {
   ALIGNMENTS,
-  BACKGROUNDS,
   BLOCK_LABELS,
   type Block,
+  type BlockStyle,
+  type Frame,
   IMAGE_SIZES,
-  PADDINGS,
 } from "@/lib/blocks";
 
-const alignOptions = ALIGNMENTS.map((a) => ({ value: a, label: a === "left" ? "Left" : "Center" }));
-const bgOptions = BACKGROUNDS.map((b) => ({
-  value: b,
-  label: { default: "White", muted: "Light gray", primary: "Brand color", dark: "Dark" }[b],
-}));
-const padOptions = PADDINGS.map((p) => ({
-  value: p,
-  label: { sm: "Small", md: "Medium", lg: "Large" }[p],
+const alignOptions = ALIGNMENTS.map((a) => ({
+  value: a,
+  label: a === "left" ? "Links" : "Zentriert",
 }));
 const sizeOptions = IMAGE_SIZES.map((s) => ({
   value: s,
-  label: { normal: "Normal", wide: "Wide", full: "Full width" }[s],
+  label: { normal: "Normal", wide: "Breit", full: "Volle Breite" }[s],
 }));
+
+const DEFAULT_FRAME: Frame = { x: 80, y: 40, w: 400, h: 200, z: 1 };
+const DEFAULT_STYLE: BlockStyle = {
+  bg: "",
+  color: "",
+  radius: 0,
+  padding: 24,
+  opacity: 100,
+  shadow: false,
+  border: false,
+};
 
 export function BlockInspector({
   block,
@@ -32,32 +45,86 @@ export function BlockInspector({
   block: Block;
   onChange: (block: Block) => void;
 }) {
-  // Merge a partial update into the current block.
   const set = (patch: Partial<Block>) => onChange({ ...block, ...patch } as Block);
+  const frame = { ...DEFAULT_FRAME, ...block.frame };
+  const style = { ...DEFAULT_STYLE, ...block.style };
+  const setFrame = (patch: Partial<Frame>) =>
+    set({ frame: { ...frame, ...patch } } as Partial<Block>);
+  const setStyle = (patch: Partial<BlockStyle>) =>
+    set({ style: { ...style, ...patch } } as Partial<Block>);
 
   return (
     <div className="space-y-5">
       <div>
         <p className="text-xs uppercase tracking-wide text-[var(--color-muted-foreground)]">
-          Editing
+          Bearbeiten
         </p>
         <h3 className="text-base font-semibold">{BLOCK_LABELS[block.type]}</h3>
       </div>
 
       <div className="space-y-4">{renderFields(block, set)}</div>
 
-      <div className="space-y-4 border-t border-[var(--color-border)] pt-4">
-        <SelectField
-          label="Background"
-          value={block.background ?? "default"}
-          options={bgOptions}
-          onChange={(background) => set({ background })}
+      <div className="space-y-3 border-t border-[var(--color-border)] pt-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
+          Position & Größe
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField label="X" value={frame.x} onChange={(x) => setFrame({ x })} />
+          <NumberField label="Y" value={frame.y} onChange={(y) => setFrame({ y })} />
+          <NumberField label="Breite" value={frame.w} min={40} onChange={(w) => setFrame({ w })} />
+          <NumberField label="Höhe" value={frame.h} min={20} onChange={(h) => setFrame({ h })} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField
+            label="Ebene (z)"
+            value={frame.z}
+            min={0}
+            onChange={(z) => setFrame({ z })}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-3 border-t border-[var(--color-border)] pt-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
+          Stil
+        </p>
+        <ColorField label="Hintergrund" value={style.bg} onChange={(bg) => setStyle({ bg })} />
+        <ColorField
+          label="Textfarbe"
+          value={style.color}
+          onChange={(color) => setStyle({ color })}
         />
-        <SelectField
-          label="Spacing"
-          value={block.padding ?? "lg"}
-          options={padOptions}
-          onChange={(padding) => set({ padding })}
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField
+            label="Ecken-Radius"
+            value={style.radius}
+            min={0}
+            onChange={(radius) => setStyle({ radius })}
+          />
+          <NumberField
+            label="Innenabstand"
+            value={style.padding}
+            min={0}
+            onChange={(padding) => setStyle({ padding })}
+          />
+        </div>
+        <NumberField
+          label="Deckkraft (%)"
+          value={style.opacity}
+          min={0}
+          max={100}
+          step={5}
+          onChange={(opacity) => setStyle({ opacity })}
+        />
+        <ToggleField
+          label="Schatten"
+          value={style.shadow}
+          onChange={(shadow) => setStyle({ shadow })}
+        />
+        <ToggleField
+          label="Rahmen"
+          value={style.border}
+          onChange={(border) => setStyle({ border })}
         />
       </div>
     </div>
@@ -70,33 +137,33 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
       return (
         <>
           <TextField
-            label="Heading"
+            label="Überschrift"
             value={block.heading}
             onChange={(heading) => set({ heading })}
           />
           <TextAreaField
-            label="Subheading"
+            label="Unterüberschrift"
             value={block.subheading}
             rows={2}
             onChange={(subheading) => set({ subheading })}
           />
           <ImageField
-            label="Background image"
+            label="Bild"
             value={block.imageUrl}
             onChange={(imageUrl) => set({ imageUrl })}
           />
           <TextField
-            label="Button text"
+            label="Button-Text"
             value={block.buttonText}
             onChange={(buttonText) => set({ buttonText })}
           />
           <TextField
-            label="Button link"
+            label="Button-Link"
             value={block.buttonUrl}
             onChange={(buttonUrl) => set({ buttonUrl })}
           />
           <SelectField
-            label="Alignment"
+            label="Ausrichtung"
             value={block.align}
             options={alignOptions}
             onChange={(align) => set({ align })}
@@ -108,18 +175,18 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
       return (
         <>
           <TextField
-            label="Heading"
+            label="Überschrift"
             value={block.heading}
             onChange={(heading) => set({ heading })}
           />
           <TextAreaField
-            label="Body"
+            label="Text"
             value={block.body}
             rows={6}
             onChange={(body) => set({ body })}
           />
           <SelectField
-            label="Alignment"
+            label="Ausrichtung"
             value={block.align}
             options={alignOptions}
             onChange={(align) => set({ align })}
@@ -130,14 +197,14 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
     case "image":
       return (
         <>
-          <ImageField label="Image" value={block.url} onChange={(url) => set({ url })} />
+          <ImageField label="Bild" value={block.url} onChange={(url) => set({ url })} />
           <TextField
-            label="Caption"
+            label="Bildunterschrift"
             value={block.caption}
             onChange={(caption) => set({ caption })}
           />
           <SelectField
-            label="Size"
+            label="Größe"
             value={block.size}
             options={sizeOptions}
             onChange={(size) => set({ size })}
@@ -149,7 +216,7 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
       return (
         <>
           <TextField
-            label="Heading"
+            label="Überschrift"
             value={block.heading}
             onChange={(heading) => set({ heading })}
           />
@@ -159,19 +226,19 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
               <div key={i} className="rounded-md border border-[var(--color-border)] p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
-                    Image {i + 1}
+                    Bild {i + 1}
                   </span>
                   <button
                     type="button"
                     onClick={() => set({ items: block.items.filter((_, j) => j !== i) })}
                     className="text-[var(--color-muted-foreground)] hover:text-[var(--color-destructive)]"
-                    aria-label="Remove image"
+                    aria-label="Bild entfernen"
                   >
                     <Trash2 className="size-3.5" />
                   </button>
                 </div>
                 <ImageField
-                  label="Image"
+                  label="Bild"
                   value={item.url}
                   onChange={(url) =>
                     set({ items: block.items.map((it, j) => (j === i ? { ...it, url } : it)) })
@@ -186,7 +253,7 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
             size="sm"
             onClick={() => set({ items: [...block.items, { url: "", caption: "" }] })}
           >
-            <Plus /> Add image
+            <Plus /> Bild hinzufügen
           </Button>
         </>
       );
@@ -195,7 +262,7 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
       return (
         <>
           <TextField
-            label="Heading"
+            label="Überschrift"
             value={block.heading}
             onChange={(heading) => set({ heading })}
           />
@@ -205,26 +272,26 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
               <div key={i} className="space-y-2 rounded-md border border-[var(--color-border)] p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
-                    Item {i + 1}
+                    Element {i + 1}
                   </span>
                   <button
                     type="button"
                     onClick={() => set({ items: block.items.filter((_, j) => j !== i) })}
                     className="text-[var(--color-muted-foreground)] hover:text-[var(--color-destructive)]"
-                    aria-label="Remove item"
+                    aria-label="Element entfernen"
                   >
                     <Trash2 className="size-3.5" />
                   </button>
                 </div>
                 <TextField
-                  label="Title"
+                  label="Titel"
                   value={item.title}
                   onChange={(title) =>
                     set({ items: block.items.map((it, j) => (j === i ? { ...it, title } : it)) })
                   }
                 />
                 <TextAreaField
-                  label="Description"
+                  label="Beschreibung"
                   rows={2}
                   value={item.description}
                   onChange={(description) =>
@@ -242,7 +309,7 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
             size="sm"
             onClick={() => set({ items: [...block.items, { title: "", description: "" }] })}
           >
-            <Plus /> Add item
+            <Plus /> Element hinzufügen
           </Button>
         </>
       );
@@ -251,7 +318,7 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
       return (
         <>
           <TextField
-            label="Heading"
+            label="Überschrift"
             value={block.heading}
             onChange={(heading) => set({ heading })}
           />
@@ -262,12 +329,12 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
             onChange={(text) => set({ text })}
           />
           <TextField
-            label="Button text"
+            label="Button-Text"
             value={block.buttonText}
             onChange={(buttonText) => set({ buttonText })}
           />
           <TextField
-            label="Button link"
+            label="Button-Link"
             value={block.buttonUrl}
             onChange={(buttonUrl) => set({ buttonUrl })}
           />
@@ -278,14 +345,14 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
       return (
         <>
           <TextField
-            label="Heading"
+            label="Überschrift"
             value={block.heading}
             onChange={(heading) => set({ heading })}
           />
-          <TextField label="Email" value={block.email} onChange={(email) => set({ email })} />
-          <TextField label="Phone" value={block.phone} onChange={(phone) => set({ phone })} />
+          <TextField label="E-Mail" value={block.email} onChange={(email) => set({ email })} />
+          <TextField label="Telefon" value={block.phone} onChange={(phone) => set({ phone })} />
           <TextField
-            label="Address"
+            label="Adresse"
             value={block.address}
             onChange={(address) => set({ address })}
           />
@@ -296,7 +363,7 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
       return (
         <>
           <TextField
-            label="Heading"
+            label="Überschrift"
             value={block.heading}
             onChange={(heading) => set({ heading })}
           />
@@ -306,26 +373,26 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
               <div key={i} className="space-y-2 rounded-md border border-[var(--color-border)] p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
-                    Row {i + 1}
+                    Zeile {i + 1}
                   </span>
                   <button
                     type="button"
                     onClick={() => set({ items: block.items.filter((_, j) => j !== i) })}
                     className="text-[var(--color-muted-foreground)] hover:text-[var(--color-destructive)]"
-                    aria-label="Remove row"
+                    aria-label="Zeile entfernen"
                   >
                     <Trash2 className="size-3.5" />
                   </button>
                 </div>
                 <TextField
-                  label="Day / label"
+                  label="Tag / Bezeichnung"
                   value={item.label}
                   onChange={(label) =>
                     set({ items: block.items.map((it, j) => (j === i ? { ...it, label } : it)) })
                   }
                 />
                 <TextField
-                  label="Hours / value"
+                  label="Zeiten / Wert"
                   value={item.value}
                   onChange={(value) =>
                     set({ items: block.items.map((it, j) => (j === i ? { ...it, value } : it)) })
@@ -340,7 +407,7 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
             size="sm"
             onClick={() => set({ items: [...block.items, { label: "", value: "" }] })}
           >
-            <Plus /> Add row
+            <Plus /> Zeile hinzufügen
           </Button>
         </>
       );
@@ -349,7 +416,7 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
       return (
         <>
           <TextField
-            label="Heading"
+            label="Überschrift"
             value={block.heading}
             onChange={(heading) => set({ heading })}
           />
@@ -359,28 +426,26 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
               <div key={i} className="space-y-2 rounded-md border border-[var(--color-border)] p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
-                    Question {i + 1}
+                    Frage {i + 1}
                   </span>
                   <button
                     type="button"
                     onClick={() => set({ items: block.items.filter((_, j) => j !== i) })}
                     className="text-[var(--color-muted-foreground)] hover:text-[var(--color-destructive)]"
-                    aria-label="Remove question"
+                    aria-label="Frage entfernen"
                   >
                     <Trash2 className="size-3.5" />
                   </button>
                 </div>
                 <TextField
-                  label="Question"
+                  label="Frage"
                   value={item.question}
                   onChange={(question) =>
-                    set({
-                      items: block.items.map((it, j) => (j === i ? { ...it, question } : it)),
-                    })
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, question } : it)) })
                   }
                 />
                 <TextAreaField
-                  label="Answer"
+                  label="Antwort"
                   rows={3}
                   value={item.answer}
                   onChange={(answer) =>
@@ -396,7 +461,7 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
             size="sm"
             onClick={() => set({ items: [...block.items, { question: "", answer: "" }] })}
           >
-            <Plus /> Add question
+            <Plus /> Frage hinzufügen
           </Button>
         </>
       );
@@ -405,13 +470,13 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
       return (
         <>
           <TextAreaField
-            label="Quote"
+            label="Zitat"
             rows={4}
             value={block.quote}
             onChange={(quote) => set({ quote })}
           />
-          <TextField label="Author" value={block.author} onChange={(author) => set({ author })} />
-          <TextField label="Role" value={block.role} onChange={(role) => set({ role })} />
+          <TextField label="Autor" value={block.author} onChange={(author) => set({ author })} />
+          <TextField label="Rolle" value={block.role} onChange={(role) => set({ role })} />
         </>
       );
 
@@ -419,13 +484,13 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
       return (
         <>
           <TextField
-            label="Video link (YouTube or Vimeo)"
+            label="Video-Link (YouTube oder Vimeo)"
             placeholder="https://youtube.com/watch?v=..."
             value={block.url}
             onChange={(url) => set({ url })}
           />
           <TextField
-            label="Caption"
+            label="Bildunterschrift"
             value={block.caption}
             onChange={(caption) => set({ caption })}
           />
@@ -436,12 +501,12 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
       return (
         <>
           <TextField
-            label="Heading"
+            label="Überschrift"
             value={block.heading}
             onChange={(heading) => set({ heading })}
           />
           <TextAreaField
-            label="Address"
+            label="Adresse"
             rows={2}
             value={block.address}
             onChange={(address) => set({ address })}
@@ -452,7 +517,7 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
     case "divider":
       return (
         <p className="text-sm text-[var(--color-muted-foreground)]">
-          A divider has no content. Adjust its background and spacing below.
+          Ein Trenner hat keinen Inhalt. Passe Position und Stil unten an.
         </p>
       );
   }

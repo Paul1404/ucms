@@ -1,5 +1,6 @@
-import { boolean, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
 import type { Block } from "@/lib/blocks";
+import type { Footer, Header } from "@/lib/chrome";
 
 // --- better-auth tables (plural names, adapter configured with usePlural) ---
 
@@ -11,6 +12,8 @@ export const users = pgTable("users", {
     .$defaultFn(() => false)
     .notNull(),
   image: text("image"),
+  // "admin" can manage every site and invite users; "member" can only edit the
+  // sites they are assigned to.
   role: text("role").default("admin").notNull(),
   createdAt: timestamp("created_at")
     .$defaultFn(() => new Date())
@@ -60,38 +63,76 @@ export const verifications = pgTable("verifications", {
   updatedAt: timestamp("updated_at").$defaultFn(() => new Date()),
 });
 
-// --- site content ---
-// The whole product is a single one-page website. `draft` holds the
-// work-in-progress block list shown in the editor; `published` is the public
-// snapshot. Publishing copies draft into published.
+// --- sites ---
+// Each row is one website served at /<slug>. `draft` holds the work-in-progress
+// canvas shown in the editor; `published` is the public snapshot. Publishing
+// copies draft into published. Header and footer render around the canvas.
 
 export const sites = pgTable("sites", {
-  id: text("id").primaryKey().default("default"),
-  name: text("name").default("My Site").notNull(),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  slug: text("slug").notNull().unique(),
+  name: text("name").default("Meine Seite").notNull(),
   description: text("description").default("").notNull(),
   ogImage: text("og_image").default("").notNull(),
   font: text("font").default("sans").notNull(),
+  themeColor: text("theme_color").default("#4338ca").notNull(),
   draft: jsonb("draft").$type<Block[]>().default([]).notNull(),
   published: jsonb("published").$type<Block[] | null>(),
-  themeColor: text("theme_color").default("#4338ca").notNull(),
+  header: jsonb("header").$type<Header | null>(),
+  footer: jsonb("footer").$type<Footer | null>(),
+  canvasHeight: integer("canvas_height").default(1400).notNull(),
+  publishedHeight: integer("published_height"),
+  ownerId: text("owner_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => new Date())
+    .notNull(),
   updatedAt: timestamp("updated_at")
     .$defaultFn(() => new Date())
     .notNull(),
 });
 
-// Uploaded images, stored in the database so the app stays self-contained with
-// no external object storage to configure. Served at /media/:id.
+// Who may edit which site. The owner is implied by sites.ownerId; this table
+// holds the additional invited editors.
+export const siteMembers = pgTable(
+  "site_members",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").default("editor").notNull(),
+    createdAt: timestamp("created_at")
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [unique("site_members_site_user_unique").on(table.siteId, table.userId)],
+);
+
+// Uploaded images. When S3 is configured the bytes live in the bucket and
+// `storageKey` points at the object; otherwise the bytes are stored in the
+// database as base64 in `data`. Served at /media/:id either way.
 export const media = pgTable("media", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
+  siteId: text("site_id").references(() => sites.id, { onDelete: "set null" }),
   mimeType: text("mime_type").notNull(),
-  data: text("data").notNull(), // base64-encoded bytes
+  storage: text("storage").default("db").notNull(), // "db" | "s3"
+  storageKey: text("storage_key"),
+  data: text("data"), // base64 bytes when storage = "db"
   createdAt: timestamp("created_at")
     .$defaultFn(() => new Date())
     .notNull(),
 });
 
 export type Site = typeof sites.$inferSelect;
+export type SiteMember = typeof siteMembers.$inferSelect;
 export type Media = typeof media.$inferSelect;
 export type User = typeof users.$inferSelect;

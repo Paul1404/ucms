@@ -8,6 +8,15 @@ const EnvSchema = v.object({
   ),
   BETTER_AUTH_URL: v.optional(v.string(), "http://localhost:3000"),
   PORT: v.optional(v.string(), "3000"),
+
+  // S3-compatible object storage for uploads. All optional: when unset, uploads
+  // fall back to storing bytes in the database. On Railway these are injected
+  // when a Bucket service is connected ("AWS SDK Generic" style).
+  AWS_REGION: v.optional(v.string(), ""),
+  AWS_ENDPOINT_URL_S3: v.optional(v.string(), ""),
+  AWS_ACCESS_KEY_ID: v.optional(v.string(), ""),
+  AWS_SECRET_ACCESS_KEY: v.optional(v.string(), ""),
+  BUCKET_NAME: v.optional(v.string(), ""),
 });
 
 export type Env = v.InferOutput<typeof EnvSchema>;

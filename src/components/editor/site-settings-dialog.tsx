@@ -29,11 +29,11 @@ export function SiteSettingsDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-md rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] shadow-xl">
         <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-3">
-          <h2 className="font-semibold">Site settings</h2>
+          <h2 className="font-semibold">Einstellungen</h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label="Schließen"
             className="rounded p-1 text-[var(--color-muted-foreground)] hover:bg-[var(--color-accent)]"
           >
             <X className="size-4" />
@@ -42,7 +42,7 @@ export function SiteSettingsDialog({
 
         <div className="space-y-5 p-5">
           <div className="space-y-1.5">
-            <p className="text-xs font-medium text-[var(--color-muted-foreground)]">Brand color</p>
+            <p className="text-xs font-medium text-[var(--color-muted-foreground)]">Markenfarbe</p>
             <div className="flex flex-wrap items-center gap-2">
               {COLOR_PRESETS.map((color) => (
                 <button
@@ -73,28 +73,28 @@ export function SiteSettingsDialog({
           </div>
 
           <SelectField
-            label="Font"
+            label="Schriftart"
             value={meta.font}
             options={fontOptions}
             onChange={(font) => set({ font })}
           />
 
           <TextAreaField
-            label="Description (for search engines and link previews)"
+            label="Beschreibung (für Suchmaschinen und Link-Vorschauen)"
             rows={3}
             value={meta.description}
             onChange={(description) => set({ description })}
           />
 
           <ImageField
-            label="Social share image"
+            label="Vorschaubild für soziale Netzwerke"
             value={meta.ogImage}
             onChange={(ogImage) => set({ ogImage })}
           />
         </div>
 
         <div className="flex justify-end border-t border-[var(--color-border)] px-5 py-3">
-          <Button onClick={onClose}>Done</Button>
+          <Button onClick={onClose}>Fertig</Button>
         </div>
       </div>
     </div>

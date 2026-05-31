@@ -15,6 +15,13 @@
       "when": 1780192602450,
       "tag": "0001_gifted_titanium_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780196283735,
+      "tag": "0002_nostalgic_vector",
+      "breakpoints": true
     }
   ]
 }
