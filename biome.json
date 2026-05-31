@@ -7,7 +7,16 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/routeTree.gen.ts", "!**/*.css", "!dist", "!node_modules"]
+    "includes": [
+      "**",
+      "!**/routeTree.gen.ts",
+      "!**/*.css",
+      "!dist",
+      "!node_modules",
+      "!playwright/.cache",
+      "!test-results",
+      "!playwright-report"
+    ]
   },
   "formatter": {
     "enabled": true,

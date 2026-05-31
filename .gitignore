@@ -12,3 +12,7 @@ dist
 *.log
 .vite
 coverage
+playwright/.cache
+playwright-report
+test-results
+blob-report
