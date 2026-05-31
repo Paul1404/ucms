@@ -1,7 +1,7 @@
-import { ImageIcon, Mail, MapPin, Phone } from "lucide-react";
+import { ImageIcon, Mail, MapPin, Phone, Quote, Video } from "lucide-react";
 import { createElement } from "react";
 import { InlineText } from "@/components/editor/inline-text";
-import type { Block } from "@/lib/blocks";
+import { type Block, toEmbedUrl } from "@/lib/blocks";
 import { cn } from "@/lib/utils";
 
 const BG_CLASS: Record<string, string> = {
@@ -389,6 +389,202 @@ export function BlockView({ block, edit }: { block: Block; edit?: EditHandle }) 
                 </>
               )}
             </div>
+          </div>
+        </Section>
+      );
+    }
+
+    case "hours": {
+      const up = (patch: Partial<typeof block>) => edit?.onChange({ ...block, ...patch });
+      const setItem = (idx: number, patch: Partial<(typeof block.items)[number]>) =>
+        up({ items: block.items.map((it, j) => (j === idx ? { ...it, ...patch } : it)) });
+      return (
+        <Section block={block}>
+          <Txt
+            editable={editable}
+            as="h2"
+            className="mb-8 text-center text-3xl font-semibold tracking-tight"
+            placeholder="Opening hours"
+            value={block.heading}
+            onChange={(heading) => up({ heading })}
+          />
+          <dl className="mx-auto max-w-md divide-y divide-current/10">
+            {(block.items ?? []).map((item, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id
+              <div key={i} className="flex items-center justify-between gap-4 py-3">
+                <Txt
+                  editable={editable}
+                  as="span"
+                  className="font-medium"
+                  placeholder="Day"
+                  value={item.label}
+                  onChange={(label) => setItem(i, { label })}
+                />
+                <Txt
+                  editable={editable}
+                  as="span"
+                  className="opacity-80"
+                  placeholder="Hours"
+                  value={item.value}
+                  onChange={(value) => setItem(i, { value })}
+                />
+              </div>
+            ))}
+          </dl>
+        </Section>
+      );
+    }
+
+    case "faq": {
+      const up = (patch: Partial<typeof block>) => edit?.onChange({ ...block, ...patch });
+      const setItem = (idx: number, patch: Partial<(typeof block.items)[number]>) =>
+        up({ items: block.items.map((it, j) => (j === idx ? { ...it, ...patch } : it)) });
+      return (
+        <Section block={block}>
+          <Txt
+            editable={editable}
+            as="h2"
+            className="mb-8 text-center text-3xl font-semibold tracking-tight"
+            placeholder="Frequently asked questions"
+            value={block.heading}
+            onChange={(heading) => up({ heading })}
+          />
+          <div className="mx-auto max-w-2xl space-y-3">
+            {(block.items ?? []).map((item, i) =>
+              editable ? (
+                // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id
+                <div key={i} className="rounded-lg border border-current/10 p-4">
+                  <InlineText
+                    as="p"
+                    className="font-medium"
+                    placeholder="Question"
+                    value={item.question}
+                    onChange={(question) => setItem(i, { question })}
+                  />
+                  <InlineText
+                    as="p"
+                    className="mt-1 text-sm opacity-80"
+                    placeholder="Answer"
+                    multiline
+                    value={item.answer}
+                    onChange={(answer) => setItem(i, { answer })}
+                  />
+                </div>
+              ) : (
+                // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id
+                <details key={i} className="group rounded-lg border border-current/10 p-4">
+                  <summary className="cursor-pointer font-medium">{item.question}</summary>
+                  {item.answer ? (
+                    <p className="mt-2 whitespace-pre-wrap text-sm opacity-80">{item.answer}</p>
+                  ) : null}
+                </details>
+              ),
+            )}
+          </div>
+        </Section>
+      );
+    }
+
+    case "testimonial": {
+      const up = (patch: Partial<typeof block>) => edit?.onChange({ ...block, ...patch });
+      return (
+        <Section block={block}>
+          <figure className="mx-auto max-w-2xl text-center">
+            <Quote className="mx-auto mb-4 size-8 opacity-40" />
+            <Txt
+              editable={editable}
+              as="p"
+              className="text-2xl font-medium leading-snug"
+              placeholder="A kind word from someone you helped"
+              multiline
+              value={block.quote}
+              onChange={(quote) => up({ quote })}
+            />
+            <figcaption className="mt-4 text-sm opacity-70">
+              <Txt
+                editable={editable}
+                as="span"
+                className="font-semibold"
+                placeholder="Name"
+                value={block.author}
+                onChange={(author) => up({ author })}
+              />
+              {editable || block.role ? <span className="opacity-60"> · </span> : null}
+              <Txt
+                editable={editable}
+                as="span"
+                placeholder="Role (optional)"
+                value={block.role}
+                onChange={(role) => up({ role })}
+              />
+            </figcaption>
+          </figure>
+        </Section>
+      );
+    }
+
+    case "video": {
+      const embed = toEmbedUrl(block.url);
+      return (
+        <Section block={block}>
+          <div className="mx-auto max-w-3xl">
+            {embed ? (
+              <div className="aspect-video overflow-hidden rounded-xl">
+                <iframe
+                  src={embed}
+                  title={block.caption || "Video"}
+                  className="h-full w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : editable ? (
+              <div className="flex aspect-video items-center justify-center rounded-xl border border-dashed border-current/30 text-sm opacity-60">
+                <span className="flex items-center gap-2">
+                  <Video className="size-4" /> Paste a YouTube or Vimeo link in the panel
+                </span>
+              </div>
+            ) : null}
+            <Txt
+              editable={editable}
+              as="p"
+              className="mt-2 text-center text-sm opacity-70"
+              placeholder="Caption (optional)"
+              value={block.caption}
+              onChange={(caption) => edit?.onChange({ ...block, caption })}
+            />
+          </div>
+        </Section>
+      );
+    }
+
+    case "map": {
+      const up = (patch: Partial<typeof block>) => edit?.onChange({ ...block, ...patch });
+      const src = block.address
+        ? `https://maps.google.com/maps?q=${encodeURIComponent(block.address)}&output=embed`
+        : null;
+      return (
+        <Section block={block}>
+          <Txt
+            editable={editable}
+            as="h2"
+            className="mb-8 text-center text-3xl font-semibold tracking-tight"
+            placeholder="Find us"
+            value={block.heading}
+            onChange={(heading) => up({ heading })}
+          />
+          <div className="mx-auto max-w-3xl">
+            {src ? (
+              <div className="aspect-video overflow-hidden rounded-xl border border-current/10">
+                <iframe src={src} title="Map" className="h-full w-full" loading="lazy" />
+              </div>
+            ) : editable ? (
+              <div className="flex aspect-video items-center justify-center rounded-xl border border-dashed border-current/30 text-sm opacity-60">
+                <span className="flex items-center gap-2">
+                  <MapPin className="size-4" /> Enter an address in the panel
+                </span>
+              </div>
+            ) : null}
           </div>
         </Section>
       );

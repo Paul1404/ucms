@@ -68,6 +68,9 @@ export const verifications = pgTable("verifications", {
 export const sites = pgTable("sites", {
   id: text("id").primaryKey().default("default"),
   name: text("name").default("My Site").notNull(),
+  description: text("description").default("").notNull(),
+  ogImage: text("og_image").default("").notNull(),
+  font: text("font").default("sans").notNull(),
   draft: jsonb("draft").$type<Block[]>().default([]).notNull(),
   published: jsonb("published").$type<Block[] | null>(),
   themeColor: text("theme_color").default("#4338ca").notNull(),

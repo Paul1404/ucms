@@ -23,6 +23,17 @@ async function handle(request: Request): Promise<Response> {
     return Response.json({ status: "ok", time: new Date().toISOString() });
   }
 
+  if (pathname === "/robots.txt") {
+    return new Response(`User-agent: *\nAllow: /\nSitemap: ${url.origin}/sitemap.xml\n`, {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+
+  if (pathname === "/sitemap.xml") {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${url.origin}/</loc><changefreq>weekly</changefreq></url></urlset>\n`;
+    return new Response(xml, { headers: { "Content-Type": "application/xml; charset=utf-8" } });
+  }
+
   if (pathname.startsWith("/api/auth")) {
     return auth.handler(request);
   }

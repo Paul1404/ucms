@@ -292,6 +292,163 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
         </>
       );
 
+    case "hours":
+      return (
+        <>
+          <TextField
+            label="Heading"
+            value={block.heading}
+            onChange={(heading) => set({ heading })}
+          />
+          <div className="space-y-3">
+            {block.items.map((item, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: list edited by position
+              <div key={i} className="space-y-2 rounded-md border border-[var(--color-border)] p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
+                    Row {i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => set({ items: block.items.filter((_, j) => j !== i) })}
+                    className="text-[var(--color-muted-foreground)] hover:text-[var(--color-destructive)]"
+                    aria-label="Remove row"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+                <TextField
+                  label="Day / label"
+                  value={item.label}
+                  onChange={(label) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, label } : it)) })
+                  }
+                />
+                <TextField
+                  label="Hours / value"
+                  value={item.value}
+                  onChange={(value) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, value } : it)) })
+                  }
+                />
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => set({ items: [...block.items, { label: "", value: "" }] })}
+          >
+            <Plus /> Add row
+          </Button>
+        </>
+      );
+
+    case "faq":
+      return (
+        <>
+          <TextField
+            label="Heading"
+            value={block.heading}
+            onChange={(heading) => set({ heading })}
+          />
+          <div className="space-y-3">
+            {block.items.map((item, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: list edited by position
+              <div key={i} className="space-y-2 rounded-md border border-[var(--color-border)] p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
+                    Question {i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => set({ items: block.items.filter((_, j) => j !== i) })}
+                    className="text-[var(--color-muted-foreground)] hover:text-[var(--color-destructive)]"
+                    aria-label="Remove question"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+                <TextField
+                  label="Question"
+                  value={item.question}
+                  onChange={(question) =>
+                    set({
+                      items: block.items.map((it, j) => (j === i ? { ...it, question } : it)),
+                    })
+                  }
+                />
+                <TextAreaField
+                  label="Answer"
+                  rows={3}
+                  value={item.answer}
+                  onChange={(answer) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, answer } : it)) })
+                  }
+                />
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => set({ items: [...block.items, { question: "", answer: "" }] })}
+          >
+            <Plus /> Add question
+          </Button>
+        </>
+      );
+
+    case "testimonial":
+      return (
+        <>
+          <TextAreaField
+            label="Quote"
+            rows={4}
+            value={block.quote}
+            onChange={(quote) => set({ quote })}
+          />
+          <TextField label="Author" value={block.author} onChange={(author) => set({ author })} />
+          <TextField label="Role" value={block.role} onChange={(role) => set({ role })} />
+        </>
+      );
+
+    case "video":
+      return (
+        <>
+          <TextField
+            label="Video link (YouTube or Vimeo)"
+            placeholder="https://youtube.com/watch?v=..."
+            value={block.url}
+            onChange={(url) => set({ url })}
+          />
+          <TextField
+            label="Caption"
+            value={block.caption}
+            onChange={(caption) => set({ caption })}
+          />
+        </>
+      );
+
+    case "map":
+      return (
+        <>
+          <TextField
+            label="Heading"
+            value={block.heading}
+            onChange={(heading) => set({ heading })}
+          />
+          <TextAreaField
+            label="Address"
+            rows={2}
+            value={block.address}
+            onChange={(address) => set({ address })}
+          />
+        </>
+      );
+
     case "divider":
       return (
         <p className="text-sm text-[var(--color-muted-foreground)]">

@@ -3,10 +3,27 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
 import { BlockView } from "@/components/blocks/block-view";
 import { orpc } from "@/lib/orpc";
+import { fontStack } from "@/lib/theme";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(orpc.site.get.queryOptions()),
-  head: () => ({ meta: [{ title: "Home" }] }),
+  head: ({ loaderData }) => {
+    const site = loaderData as { name: string; description?: string; ogImage?: string } | undefined;
+    const title = site?.name ?? "Home";
+    const description = site?.description || undefined;
+    const image = site?.ogImage || undefined;
+    return {
+      meta: [
+        { title },
+        ...(description ? [{ name: "description", content: description }] : []),
+        { property: "og:title", content: title },
+        ...(description ? [{ property: "og:description", content: description }] : []),
+        ...(image ? [{ property: "og:image", content: image }] : []),
+        { property: "og:type", content: "website" },
+        { name: "twitter:card", content: image ? "summary_large_image" : "summary" },
+      ],
+    };
+  },
   component: PublicSite,
 });
 
@@ -16,6 +33,7 @@ function PublicSite() {
   const themeStyle = {
     "--color-primary": site.themeColor,
     "--color-primary-foreground": "#ffffff",
+    fontFamily: fontStack(site.font),
   } as CSSProperties;
 
   return (

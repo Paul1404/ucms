@@ -6,10 +6,14 @@ You build your site by stacking sections (hero, text, gallery, features, call to
 
 ## Features
 
-- Visual one-page builder: add sections, edit them in a side panel, drag to reorder
-- Eight section types with sensible starter content so nothing looks empty
+- Visual one-page builder: add sections, edit text in place on the page or in a side panel, drag to reorder
+- Thirteen section types: hero, text, image, gallery, features, testimonial, call to action, contact, opening hours, FAQ, video, map, divider
+- Starter templates (club, local business, parish) and sensible defaults so nothing looks empty
 - Built-in image uploads (stored in the database, no S3 or extra setup)
-- Per-section background and spacing, plus a site-wide brand color
+- Undo and redo, autosave, and a guard against losing unsaved work
+- Desktop, tablet, and mobile preview widths
+- Per-section background and spacing, a site-wide brand color, and a font choice
+- SEO built in: meta description, social share image, `robots.txt`, and `sitemap.xml`
 - Draft and Publish: edit privately, publish when ready
 - Email and password authentication
 - Single Docker image, runs anywhere

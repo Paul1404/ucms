@@ -1,6 +1,13 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
-import { BLOCK_LABELS, type BlockType, blockSchema, blocksSchema, createBlock } from "./blocks";
+import {
+  BLOCK_LABELS,
+  type BlockType,
+  blockSchema,
+  blocksSchema,
+  createBlock,
+  toEmbedUrl,
+} from "./blocks";
 
 const ALL_TYPES: BlockType[] = [
   "hero",
@@ -10,6 +17,11 @@ const ALL_TYPES: BlockType[] = [
   "features",
   "cta",
   "contact",
+  "hours",
+  "faq",
+  "testimonial",
+  "video",
+  "map",
   "divider",
 ];
 
@@ -55,5 +67,27 @@ describe("blocksSchema", () => {
     const parsed = v.parse(blockSchema, { id: "x", type: "text" });
     expect(parsed.background).toBe("default");
     expect(parsed.padding).toBe("lg");
+  });
+});
+
+describe("toEmbedUrl", () => {
+  it("converts YouTube links", () => {
+    expect(toEmbedUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe(
+      "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    );
+    expect(toEmbedUrl("https://youtu.be/dQw4w9WgXcQ")).toBe(
+      "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    );
+  });
+
+  it("converts Vimeo links", () => {
+    expect(toEmbedUrl("https://vimeo.com/76979871")).toBe(
+      "https://player.vimeo.com/video/76979871",
+    );
+  });
+
+  it("returns null for unsupported or empty input", () => {
+    expect(toEmbedUrl("")).toBeNull();
+    expect(toEmbedUrl("https://example.com/video")).toBeNull();
   });
 });
