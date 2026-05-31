@@ -1,4 +1,6 @@
 import { ImageIcon, Mail, MapPin, Phone } from "lucide-react";
+import { createElement } from "react";
+import { InlineText } from "@/components/editor/inline-text";
 import type { Block } from "@/lib/blocks";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +16,12 @@ const PAD_CLASS: Record<string, string> = {
   md: "py-12",
   lg: "py-20",
 };
+
+type Tag = "span" | "div" | "h1" | "h2" | "h3" | "p";
+
+export interface EditHandle {
+  onChange: (block: Block) => void;
+}
 
 function Section({ block, children }: { block: Block; children: React.ReactNode }) {
   return (
@@ -44,34 +52,92 @@ function buttonClass(onDark: boolean) {
   );
 }
 
-/** Renders a single block as it appears on the published site. */
-export function BlockView({ block, editing = false }: { block: Block; editing?: boolean }) {
+// Renders a text field as inline-editable on the canvas, or as plain markup on
+// the published site (omitted entirely when empty).
+function Txt({
+  editable,
+  value,
+  onChange,
+  as,
+  className,
+  placeholder,
+  multiline,
+}: {
+  editable: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  as: Tag;
+  className?: string;
+  placeholder?: string;
+  multiline?: boolean;
+}) {
+  if (editable) {
+    return (
+      <InlineText
+        as={as}
+        value={value}
+        onChange={onChange}
+        className={className}
+        placeholder={placeholder}
+        multiline={multiline}
+      />
+    );
+  }
+  if (!value) return null;
+  return createElement(as, { className }, value);
+}
+
+/** Renders a single block, either for the public site or the live editor. */
+export function BlockView({ block, edit }: { block: Block; edit?: EditHandle }) {
+  const editable = Boolean(edit);
   const onDark = block.background === "primary" || block.background === "dark";
 
   switch (block.type) {
-    case "hero":
+    case "hero": {
+      const up = (patch: Partial<typeof block>) => edit?.onChange({ ...block, ...patch });
       return (
         <Section block={block}>
           <div className={cn("space-y-5", block.align === "center" && "text-center")}>
-            {block.heading ? (
-              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">{block.heading}</h1>
-            ) : null}
-            {block.subheading ? (
-              <p className="mx-auto max-w-2xl text-lg opacity-90">{block.subheading}</p>
-            ) : null}
+            <Txt
+              editable={editable}
+              as="h1"
+              className="text-4xl font-bold tracking-tight sm:text-5xl"
+              placeholder="Your headline"
+              value={block.heading}
+              onChange={(heading) => up({ heading })}
+            />
+            <Txt
+              editable={editable}
+              as="p"
+              className="mx-auto max-w-2xl text-lg opacity-90"
+              placeholder="A short, friendly subheading"
+              multiline
+              value={block.subheading}
+              onChange={(subheading) => up({ subheading })}
+            />
             {block.imageUrl ? (
               <img
                 src={block.imageUrl}
                 alt={block.heading || "Hero"}
                 className="mx-auto mt-6 max-h-[420px] w-full rounded-xl object-cover"
               />
-            ) : editing ? (
+            ) : editable ? (
               <div className="mt-6">
-                <Placeholder label="Optional hero image" />
+                <Placeholder label="Optional hero image (set in the panel)" />
               </div>
             ) : null}
-            {block.buttonText ? (
-              <div className={cn(block.align === "center" ? "flex justify-center" : "")}>
+            {editable ? (
+              <div className={block.align === "center" ? "flex justify-center" : ""}>
+                <span className={buttonClass(onDark)}>
+                  <InlineText
+                    value={block.buttonText}
+                    placeholder="Button text"
+                    onChange={(buttonText) => up({ buttonText })}
+                  />
+                </span>
+              </div>
+            ) : block.buttonText ? (
+              <div className={block.align === "center" ? "flex justify-center" : ""}>
                 <a href={block.buttonUrl || "#"} className={buttonClass(onDark)}>
                   {block.buttonText}
                 </a>
@@ -80,22 +146,34 @@ export function BlockView({ block, editing = false }: { block: Block; editing?: 
           </div>
         </Section>
       );
+    }
 
-    case "text":
+    case "text": {
+      const up = (patch: Partial<typeof block>) => edit?.onChange({ ...block, ...patch });
       return (
         <Section block={block}>
           <div className={cn("space-y-4", block.align === "center" && "text-center")}>
-            {block.heading ? (
-              <h2 className="text-3xl font-semibold tracking-tight">{block.heading}</h2>
-            ) : null}
-            {block.body ? (
-              <p className="mx-auto max-w-3xl whitespace-pre-wrap text-lg leading-relaxed opacity-90">
-                {block.body}
-              </p>
-            ) : null}
+            <Txt
+              editable={editable}
+              as="h2"
+              className="text-3xl font-semibold tracking-tight"
+              placeholder="Section heading"
+              value={block.heading}
+              onChange={(heading) => up({ heading })}
+            />
+            <Txt
+              editable={editable}
+              as="p"
+              className="mx-auto max-w-3xl whitespace-pre-wrap text-lg leading-relaxed opacity-90"
+              placeholder="Write something about your organization..."
+              multiline
+              value={block.body}
+              onChange={(body) => up({ body })}
+            />
           </div>
         </Section>
       );
+    }
 
     case "image":
       return (
@@ -110,26 +188,33 @@ export function BlockView({ block, editing = false }: { block: Block; editing?: 
           >
             {block.url ? (
               <img src={block.url} alt={block.caption || ""} className="w-full rounded-xl" />
-            ) : editing ? (
-              <Placeholder label="Add an image" />
+            ) : editable ? (
+              <Placeholder label="Add an image (set in the panel)" />
             ) : null}
-            {block.caption ? (
-              <figcaption className="mt-2 text-center text-sm opacity-70">
-                {block.caption}
-              </figcaption>
-            ) : null}
+            <Txt
+              editable={editable}
+              as="p"
+              className="mt-2 text-center text-sm opacity-70"
+              placeholder="Caption (optional)"
+              value={block.caption}
+              onChange={(caption) => edit?.onChange({ ...block, caption })}
+            />
           </figure>
         </Section>
       );
 
-    case "gallery":
+    case "gallery": {
+      const up = (patch: Partial<typeof block>) => edit?.onChange({ ...block, ...patch });
       return (
         <Section block={block}>
-          {block.heading ? (
-            <h2 className="mb-8 text-center text-3xl font-semibold tracking-tight">
-              {block.heading}
-            </h2>
-          ) : null}
+          <Txt
+            editable={editable}
+            as="h2"
+            className="mb-8 text-center text-3xl font-semibold tracking-tight"
+            placeholder="Gallery"
+            value={block.heading}
+            onChange={(heading) => up({ heading })}
+          />
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {(block.items ?? []).map((item, i) =>
               item.url ? (
@@ -141,7 +226,7 @@ export function BlockView({ block, editing = false }: { block: Block; editing?: 
                     className="aspect-square w-full object-cover"
                   />
                 </figure>
-              ) : editing ? (
+              ) : editable ? (
                 // biome-ignore lint/suspicious/noArrayIndexKey: gallery items have no stable id
                 <Placeholder key={i} label="Image" />
               ) : null,
@@ -149,41 +234,83 @@ export function BlockView({ block, editing = false }: { block: Block; editing?: 
           </div>
         </Section>
       );
+    }
 
-    case "features":
+    case "features": {
+      const up = (patch: Partial<typeof block>) => edit?.onChange({ ...block, ...patch });
+      const setItem = (idx: number, patch: Partial<(typeof block.items)[number]>) =>
+        up({ items: block.items.map((it, j) => (j === idx ? { ...it, ...patch } : it)) });
       return (
         <Section block={block}>
-          {block.heading ? (
-            <h2 className="mb-10 text-center text-3xl font-semibold tracking-tight">
-              {block.heading}
-            </h2>
-          ) : null}
+          <Txt
+            editable={editable}
+            as="h2"
+            className="mb-10 text-center text-3xl font-semibold tracking-tight"
+            placeholder="What we offer"
+            value={block.heading}
+            onChange={(heading) => up({ heading })}
+          />
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {(block.items ?? []).map((item, i) => (
-              <div
-                // biome-ignore lint/suspicious/noArrayIndexKey: feature items have no stable id
-                key={i}
-                className="rounded-xl border border-current/10 bg-current/5 p-6"
-              >
-                <h3 className="text-lg font-semibold">{item.title}</h3>
-                {item.description ? (
-                  <p className="mt-2 text-sm opacity-80">{item.description}</p>
-                ) : null}
+              // biome-ignore lint/suspicious/noArrayIndexKey: feature items have no stable id
+              <div key={i} className="rounded-xl border border-current/10 bg-current/5 p-6">
+                <Txt
+                  editable={editable}
+                  as="h3"
+                  className="text-lg font-semibold"
+                  placeholder="Title"
+                  value={item.title}
+                  onChange={(title) => setItem(i, { title })}
+                />
+                <Txt
+                  editable={editable}
+                  as="p"
+                  className="mt-2 text-sm opacity-80"
+                  placeholder="Description"
+                  multiline
+                  value={item.description}
+                  onChange={(description) => setItem(i, { description })}
+                />
               </div>
             ))}
           </div>
         </Section>
       );
+    }
 
-    case "cta":
+    case "cta": {
+      const up = (patch: Partial<typeof block>) => edit?.onChange({ ...block, ...patch });
       return (
         <Section block={block}>
           <div className="space-y-4 text-center">
-            {block.heading ? (
-              <h2 className="text-3xl font-semibold tracking-tight">{block.heading}</h2>
-            ) : null}
-            {block.text ? <p className="text-lg opacity-90">{block.text}</p> : null}
-            {block.buttonText ? (
+            <Txt
+              editable={editable}
+              as="h2"
+              className="text-3xl font-semibold tracking-tight"
+              placeholder="Ready to start?"
+              value={block.heading}
+              onChange={(heading) => up({ heading })}
+            />
+            <Txt
+              editable={editable}
+              as="p"
+              className="text-lg opacity-90"
+              placeholder="A line of encouragement"
+              multiline
+              value={block.text}
+              onChange={(text) => up({ text })}
+            />
+            {editable ? (
+              <div className="flex justify-center pt-2">
+                <span className={buttonClass(onDark)}>
+                  <InlineText
+                    value={block.buttonText}
+                    placeholder="Button text"
+                    onChange={(buttonText) => up({ buttonText })}
+                  />
+                </span>
+              </div>
+            ) : block.buttonText ? (
               <div className="flex justify-center pt-2">
                 <a href={block.buttonUrl || "#"} className={buttonClass(onDark)}>
                   {block.buttonText}
@@ -193,37 +320,79 @@ export function BlockView({ block, editing = false }: { block: Block; editing?: 
           </div>
         </Section>
       );
+    }
 
-    case "contact":
+    case "contact": {
+      const up = (patch: Partial<typeof block>) => edit?.onChange({ ...block, ...patch });
       return (
         <Section block={block}>
           <div id="contact" className="space-y-6 text-center">
-            {block.heading ? (
-              <h2 className="text-3xl font-semibold tracking-tight">{block.heading}</h2>
-            ) : null}
+            <Txt
+              editable={editable}
+              as="h2"
+              className="text-3xl font-semibold tracking-tight"
+              placeholder="Get in touch"
+              value={block.heading}
+              onChange={(heading) => up({ heading })}
+            />
             <div className="flex flex-col items-center gap-3 text-base">
-              {block.email ? (
-                <a
-                  href={`mailto:${block.email}`}
-                  className="flex items-center gap-2 hover:underline"
-                >
-                  <Mail className="size-4" /> {block.email}
-                </a>
-              ) : null}
-              {block.phone ? (
-                <a href={`tel:${block.phone}`} className="flex items-center gap-2 hover:underline">
-                  <Phone className="size-4" /> {block.phone}
-                </a>
-              ) : null}
-              {block.address ? (
-                <span className="flex items-center gap-2 opacity-80">
-                  <MapPin className="size-4" /> {block.address}
-                </span>
-              ) : null}
+              {editable ? (
+                <>
+                  <span className="flex items-center gap-2">
+                    <Mail className="size-4" />
+                    <InlineText
+                      value={block.email}
+                      placeholder="email@example.com"
+                      onChange={(email) => up({ email })}
+                    />
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <Phone className="size-4" />
+                    <InlineText
+                      value={block.phone}
+                      placeholder="Phone (optional)"
+                      onChange={(phone) => up({ phone })}
+                    />
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <MapPin className="size-4" />
+                    <InlineText
+                      value={block.address}
+                      placeholder="Address (optional)"
+                      onChange={(address) => up({ address })}
+                    />
+                  </span>
+                </>
+              ) : (
+                <>
+                  {block.email ? (
+                    <a
+                      href={`mailto:${block.email}`}
+                      className="flex items-center gap-2 hover:underline"
+                    >
+                      <Mail className="size-4" /> {block.email}
+                    </a>
+                  ) : null}
+                  {block.phone ? (
+                    <a
+                      href={`tel:${block.phone}`}
+                      className="flex items-center gap-2 hover:underline"
+                    >
+                      <Phone className="size-4" /> {block.phone}
+                    </a>
+                  ) : null}
+                  {block.address ? (
+                    <span className="flex items-center gap-2 opacity-80">
+                      <MapPin className="size-4" /> {block.address}
+                    </span>
+                  ) : null}
+                </>
+              )}
             </div>
           </div>
         </Section>
       );
+    }
 
     case "divider":
       return (

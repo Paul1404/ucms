@@ -71,69 +71,21 @@
   }
 }
 
-/* Rendered markdown content */
-.prose-content {
-  line-height: 1.7;
+/* Inline click-to-edit text on the editor canvas */
+.inline-editable {
+  outline: none;
+  border-radius: 4px;
+  cursor: text;
+  transition: box-shadow 0.12s ease;
+  min-width: 1ch;
 }
-.prose-content h1,
-.prose-content h2,
-.prose-content h3 {
-  font-weight: 600;
-  line-height: 1.25;
-  margin-top: 1.75rem;
-  margin-bottom: 0.75rem;
+.inline-editable:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, currentColor 25%, transparent);
 }
-.prose-content h1 {
-  font-size: 1.875rem;
+.inline-editable:focus {
+  box-shadow: inset 0 0 0 2px var(--color-ring);
 }
-.prose-content h2 {
-  font-size: 1.5rem;
-}
-.prose-content h3 {
-  font-size: 1.25rem;
-}
-.prose-content p {
-  margin-bottom: 1rem;
-}
-.prose-content a {
-  color: var(--color-primary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.prose-content ul,
-.prose-content ol {
-  margin: 0 0 1rem 1.25rem;
-}
-.prose-content ul {
-  list-style: disc;
-}
-.prose-content ol {
-  list-style: decimal;
-}
-.prose-content blockquote {
-  border-left: 3px solid var(--color-border);
-  padding-left: 1rem;
-  color: var(--color-muted-foreground);
-  margin: 0 0 1rem 0;
-}
-.prose-content code {
-  background: var(--color-muted);
-  padding: 0.15rem 0.35rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.9em;
-}
-.prose-content pre {
-  background: var(--color-muted);
-  padding: 1rem;
-  border-radius: var(--radius-md);
-  overflow-x: auto;
-  margin-bottom: 1rem;
-}
-.prose-content pre code {
-  background: transparent;
-  padding: 0;
-}
-.prose-content img {
-  max-width: 100%;
-  border-radius: var(--radius-md);
+.inline-editable:empty::before {
+  content: attr(data-placeholder);
+  opacity: 0.45;
 }

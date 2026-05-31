@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { ExternalLink, LogOut, Rocket, Save } from "lucide-react";
+import { createFileRoute, useBlocker } from "@tanstack/react-router";
+import { ExternalLink, LogOut, Rocket, Save, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { BlockCanvas } from "@/components/editor/block-canvas";
@@ -88,6 +88,13 @@ function Editor() {
     window.location.href = "/login";
   }
 
+  // Warn before navigating away (in-app and on tab close) with unsaved changes.
+  const blocker = useBlocker({
+    shouldBlockFn: () => dirty,
+    enableBeforeUnload: () => dirty,
+    withResolver: true,
+  });
+
   return (
     <div className="flex h-screen flex-col bg-[var(--color-muted)]">
       {/* Top bar */}
@@ -166,6 +173,7 @@ function Editor() {
                 blocks={blocks}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
+                onChange={updateBlock}
                 onReorder={update}
                 onDuplicate={duplicateBlock}
                 onDelete={deleteBlock}
@@ -185,6 +193,39 @@ function Editor() {
           )}
         </aside>
       </div>
+
+      {blocker.status === "blocked" ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-6 shadow-xl">
+            <div className="flex items-center gap-2 text-[var(--color-foreground)]">
+              <TriangleAlert className="size-5 text-amber-500" />
+              <h2 className="text-lg font-semibold">Unsaved changes</h2>
+            </div>
+            <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+              You have changes that have not been saved. What would you like to do?
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              <Button
+                onClick={async () => {
+                  await save.mutateAsync(payload());
+                  blocker.proceed();
+                }}
+                disabled={save.isPending}
+              >
+                <Save /> Save and leave
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => blocker.reset()}>
+                  Stay
+                </Button>
+                <Button variant="ghost" className="flex-1" onClick={() => blocker.proceed()}>
+                  Leave without saving
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

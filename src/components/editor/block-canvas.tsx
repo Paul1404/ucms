@@ -22,6 +22,7 @@ interface CanvasProps {
   blocks: Block[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onChange: (block: Block) => void;
   onReorder: (blocks: Block[]) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
@@ -31,6 +32,7 @@ export function BlockCanvas({
   blocks,
   selectedId,
   onSelect,
+  onChange,
   onReorder,
   onDuplicate,
   onDelete,
@@ -58,6 +60,7 @@ export function BlockCanvas({
               isFirst={index === 0}
               isLast={index === blocks.length - 1}
               onSelect={() => onSelect(block.id)}
+              onChange={onChange}
               onMoveUp={() => onReorder(arrayMove(blocks, index, index - 1))}
               onMoveDown={() => onReorder(arrayMove(blocks, index, index + 1))}
               onDuplicate={() => onDuplicate(block.id)}
@@ -76,6 +79,7 @@ interface SortableBlockProps {
   isFirst: boolean;
   isLast: boolean;
   onSelect: () => void;
+  onChange: (block: Block) => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onDuplicate: () => void;
@@ -88,6 +92,7 @@ function SortableBlock({
   isFirst,
   isLast,
   onSelect,
+  onChange,
   onMoveUp,
   onMoveDown,
   onDuplicate,
@@ -104,9 +109,13 @@ function SortableBlock({
   };
 
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: editable text and toolbar inside are independently focusable
+    // biome-ignore lint/a11y/noStaticElementInteractions: a section wrapper, selection mirrors its focusable children
     <div
       ref={setNodeRef}
       style={style}
+      onClick={onSelect}
+      onFocusCapture={onSelect}
       className={cn(
         "group relative overflow-hidden rounded-lg border bg-[var(--color-background)] shadow-sm transition-shadow",
         selected
@@ -120,7 +129,7 @@ function SortableBlock({
         className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-background)]/95 p-1 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 data-[selected=true]:opacity-100"
         data-selected={selected}
       >
-        <IconBtn label="Drag" {...attributes} {...listeners}>
+        <IconBtn label="Drag to reorder" {...attributes} {...listeners}>
           <GripVertical className="size-4 cursor-grab" />
         </IconBtn>
         <IconBtn label="Move up" disabled={isFirst} onClick={onMoveUp}>
@@ -137,17 +146,7 @@ function SortableBlock({
         </IconBtn>
       </div>
 
-      {/* Click-to-select overlay over the non-interactive preview */}
-      <button
-        type="button"
-        onClick={onSelect}
-        className="block w-full cursor-pointer text-left"
-        aria-label={`Edit ${block.type} section`}
-      >
-        <div className="pointer-events-none">
-          <BlockView block={block} editing />
-        </div>
-      </button>
+      <BlockView block={block} edit={{ onChange }} />
     </div>
   );
 }
