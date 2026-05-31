@@ -1,0 +1,10 @@
+[build]
+builder = "dockerfile"
+
+[deploy]
+# The image entrypoint runs database migrations before starting the server,
+# so a fresh deploy is ready without manual steps.
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

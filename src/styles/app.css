@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.21 0.02 264);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.02 264);
+  --muted: oklch(0.97 0.01 264);
+  --muted-foreground: oklch(0.55 0.02 264);
+  --border: oklch(0.92 0.01 264);
+  --input: oklch(0.92 0.01 264);
+  --primary: oklch(0.55 0.21 264);
+  --primary-foreground: oklch(0.98 0.01 264);
+  --accent: oklch(0.97 0.01 264);
+  --accent-foreground: oklch(0.21 0.02 264);
+  --destructive: oklch(0.58 0.24 27);
+  --destructive-foreground: oklch(0.98 0.01 264);
+  --ring: oklch(0.55 0.21 264);
+  --radius: 0.65rem;
+}
+
+.dark {
+  --background: oklch(0.18 0.02 264);
+  --foreground: oklch(0.97 0.01 264);
+  --card: oklch(0.22 0.02 264);
+  --card-foreground: oklch(0.97 0.01 264);
+  --muted: oklch(0.27 0.02 264);
+  --muted-foreground: oklch(0.7 0.02 264);
+  --border: oklch(0.3 0.02 264);
+  --input: oklch(0.3 0.02 264);
+  --primary: oklch(0.65 0.19 264);
+  --primary-foreground: oklch(0.18 0.02 264);
+  --accent: oklch(0.3 0.02 264);
+  --accent-foreground: oklch(0.97 0.01 264);
+  --destructive: oklch(0.62 0.24 27);
+  --destructive-foreground: oklch(0.98 0.01 264);
+  --ring: oklch(0.65 0.19 264);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-ring: var(--ring);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Rendered markdown content */
+.prose-content {
+  line-height: 1.7;
+}
+.prose-content h1,
+.prose-content h2,
+.prose-content h3 {
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+.prose-content h1 {
+  font-size: 1.875rem;
+}
+.prose-content h2 {
+  font-size: 1.5rem;
+}
+.prose-content h3 {
+  font-size: 1.25rem;
+}
+.prose-content p {
+  margin-bottom: 1rem;
+}
+.prose-content a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-content ul,
+.prose-content ol {
+  margin: 0 0 1rem 1.25rem;
+}
+.prose-content ul {
+  list-style: disc;
+}
+.prose-content ol {
+  list-style: decimal;
+}
+.prose-content blockquote {
+  border-left: 3px solid var(--color-border);
+  padding-left: 1rem;
+  color: var(--color-muted-foreground);
+  margin: 0 0 1rem 0;
+}
+.prose-content code {
+  background: var(--color-muted);
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.9em;
+}
+.prose-content pre {
+  background: var(--color-muted);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+.prose-content pre code {
+  background: transparent;
+  padding: 0;
+}
+.prose-content img {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+}
