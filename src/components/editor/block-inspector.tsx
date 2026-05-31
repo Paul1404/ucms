@@ -40,6 +40,9 @@ const DEFAULT_STYLE: BlockStyle = {
   opacity: 100,
   shadow: false,
   border: false,
+  borderWidth: 1,
+  borderColor: "",
+  rotation: 0,
   hidden: false,
 };
 
@@ -71,6 +74,7 @@ export function BlockInspector({
     else if (device === "mobile") onChange({ ...block, frameMobile: undefined } as Block);
   };
   const overridden = device !== "desktop" && hasOwnFrame(block, device);
+  const hasStyle = Boolean(block.style);
 
   return (
     <div className="space-y-5">
@@ -121,9 +125,20 @@ export function BlockInspector({
       </div>
 
       <div className="space-y-3 border-t border-[var(--color-border)] pt-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
-          Stil
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
+            Stil
+          </p>
+          {hasStyle ? (
+            <button
+              type="button"
+              onClick={() => onChange({ ...block, style: undefined } as Block)}
+              className="flex items-center gap-1 text-xs text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+            >
+              <RotateCcw className="size-3" /> Zurücksetzen
+            </button>
+          ) : null}
+        </div>
         <ColorField label="Hintergrund" value={style.bg} onChange={(bg) => setStyle({ bg })} />
         <ColorField
           label="Textfarbe"
@@ -144,14 +159,23 @@ export function BlockInspector({
             onChange={(padding) => setStyle({ padding })}
           />
         </div>
-        <NumberField
-          label="Deckkraft (%)"
-          value={style.opacity}
-          min={0}
-          max={100}
-          step={5}
-          onChange={(opacity) => setStyle({ opacity })}
-        />
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField
+            label="Deckkraft (%)"
+            value={style.opacity}
+            min={0}
+            max={100}
+            step={5}
+            onChange={(opacity) => setStyle({ opacity })}
+          />
+          <NumberField
+            label="Drehung (°)"
+            value={style.rotation}
+            min={-180}
+            max={180}
+            onChange={(rotation) => setStyle({ rotation })}
+          />
+        </div>
         <ToggleField
           label="Schatten"
           value={style.shadow}
@@ -162,6 +186,22 @@ export function BlockInspector({
           value={style.border}
           onChange={(border) => setStyle({ border })}
         />
+        {style.border ? (
+          <div className="space-y-3 rounded-md border border-[var(--color-border)] p-3">
+            <NumberField
+              label="Rahmenbreite"
+              value={style.borderWidth}
+              min={0}
+              max={20}
+              onChange={(borderWidth) => setStyle({ borderWidth })}
+            />
+            <ColorField
+              label="Rahmenfarbe"
+              value={style.borderColor}
+              onChange={(borderColor) => setStyle({ borderColor })}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );

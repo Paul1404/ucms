@@ -77,16 +77,33 @@ export function NumberField({
   );
 }
 
+// A small, tasteful default palette for the quick swatches under a color input.
+export const COLOR_SWATCHES = [
+  "#000000",
+  "#ffffff",
+  "#64748b",
+  "#ef4444",
+  "#f97316",
+  "#eab308",
+  "#22c55e",
+  "#06b6d4",
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+] as const;
+
 export function ColorField({
   label,
   value,
   onChange,
   allowEmpty = true,
+  swatches = COLOR_SWATCHES,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   allowEmpty?: boolean;
+  swatches?: readonly string[];
 }) {
   return (
     <Field label={label}>
@@ -114,6 +131,21 @@ export function ColorField({
           </button>
         ) : null}
       </div>
+      {swatches.length > 0 ? (
+        <div className="flex flex-wrap gap-1 pt-1">
+          {swatches.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => onChange(c)}
+              style={{ backgroundColor: c }}
+              className="size-5 rounded border border-[var(--color-border)] transition-transform hover:scale-110"
+              aria-label={`Farbe ${c}`}
+              title={c}
+            />
+          ))}
+        </div>
+      ) : null}
     </Field>
   );
 }

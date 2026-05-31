@@ -31,16 +31,16 @@ import {
   type Block,
   type BlockType,
   BREAKPOINTS,
+  cloneBlock,
   createBlock,
   type Device,
-  type Frame,
-  GRID,
   getFrame,
   placeNewBlock,
   reflowFrame,
   setFrame as setDeviceFrame,
 } from "@/lib/blocks";
 import type { Footer, Header } from "@/lib/chrome";
+import { readClipboard, writeClipboard } from "@/lib/clipboard";
 import { orpc } from "@/lib/orpc";
 import { type FontChoice, fontStack } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -131,15 +131,7 @@ function Editor() {
   function duplicateBlock(id: string) {
     const original = state.blocks.find((b) => b.id === id);
     if (!original) return;
-    const shift = (f: Frame | undefined) =>
-      f ? { ...f, x: f.x + GRID * 2, y: f.y + GRID * 2 } : undefined;
-    const copy = {
-      ...original,
-      id: crypto.randomUUID(),
-      frame: shift(original.frame),
-      frameTablet: shift(original.frameTablet),
-      frameMobile: shift(original.frameMobile),
-    } as Block;
+    const copy = cloneBlock(original);
     setBlocks([...state.blocks, copy]);
     setSelectedId(copy.id);
   }
@@ -147,6 +139,33 @@ function Editor() {
   function deleteBlock(id: string) {
     setBlocks(state.blocks.filter((b) => b.id !== id));
     if (selectedId === id) setSelectedId(null);
+  }
+
+  // Clipboard: copy/cut put a block on the editor clipboard (in memory and
+  // mirrored to localStorage so it survives a reload and works across sites);
+  // paste inserts a fresh copy and selects it.
+  function copyBlock(id: string) {
+    const block = state.blocks.find((b) => b.id === id);
+    if (!block) return;
+    writeClipboard(block);
+    toast.success("Element kopiert");
+  }
+
+  function cutBlock(id: string) {
+    const block = state.blocks.find((b) => b.id === id);
+    if (!block) return;
+    writeClipboard(block);
+    deleteBlock(id);
+    toast.success("Element ausgeschnitten");
+  }
+
+  function pasteBlock() {
+    const source = readClipboard();
+    if (!source) return;
+    const copy = cloneBlock(source);
+    setBlocks([...state.blocks, copy]);
+    setSelectedId(copy.id);
+    toast.success("Element eingefügt");
   }
 
   // Layering: set the selected block's z above or below all others on the
@@ -251,6 +270,26 @@ function Editor() {
       if (mod && e.key.toLowerCase() === "y" && !isTextTarget(e.target)) {
         e.preventDefault();
         redo();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "c" && !isTextTarget(e.target) && selectedId) {
+        e.preventDefault();
+        copyBlock(selectedId);
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "x" && !isTextTarget(e.target) && selectedId) {
+        e.preventDefault();
+        cutBlock(selectedId);
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "v" && !isTextTarget(e.target)) {
+        e.preventDefault();
+        pasteBlock();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "d" && !isTextTarget(e.target) && selectedId) {
+        e.preventDefault();
+        duplicateBlock(selectedId);
         return;
       }
       if (e.key === "Escape") {
@@ -461,11 +500,39 @@ function Editor() {
               onSendToBack={() => restack(selected.id, "back")}
             />
           ) : (
-            <p className="text-sm text-[var(--color-muted-foreground)]">
-              Wähle ein Element aus, um es zu bearbeiten. Ziehe Elemente frei auf der Fläche und
-              passe Größe, Farben und Position an. Über die Geräte-Symbole oben gestaltest du eigene
-              Layouts für Tablet und Mobil.
-            </p>
+            <div className="space-y-3 text-sm text-[var(--color-muted-foreground)]">
+              <p>
+                Wähle ein Element aus, um es zu bearbeiten. Ziehe Elemente frei auf der Fläche und
+                passe Größe, Farben und Position an. Über die Geräte-Symbole oben gestaltest du
+                eigene Layouts für Tablet und Mobil.
+              </p>
+              <div className="rounded-md border border-[var(--color-border)] p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide">Tastenkürzel</p>
+                <ul className="space-y-1 text-xs">
+                  <li>
+                    <Shortcut keys="Strg/Cmd + C" /> Kopieren
+                  </li>
+                  <li>
+                    <Shortcut keys="Strg/Cmd + X" /> Ausschneiden
+                  </li>
+                  <li>
+                    <Shortcut keys="Strg/Cmd + V" /> Einfügen
+                  </li>
+                  <li>
+                    <Shortcut keys="Strg/Cmd + D" /> Duplizieren
+                  </li>
+                  <li>
+                    <Shortcut keys="Strg/Cmd + Z" /> Rückgängig / Wiederholen
+                  </li>
+                  <li>
+                    <Shortcut keys="Pfeiltasten" /> Verschieben (mit Shift: 10px)
+                  </li>
+                  <li>
+                    <Shortcut keys="Entf" /> Löschen
+                  </li>
+                </ul>
+              </div>
+            </div>
           )}
         </aside>
       </div>
@@ -531,6 +598,14 @@ function Editor() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function Shortcut({ keys }: { keys: string }) {
+  return (
+    <kbd className="mr-1.5 inline-block rounded border border-[var(--color-border)] bg-[var(--color-muted)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-foreground)]">
+      {keys}
+    </kbd>
   );
 }
 

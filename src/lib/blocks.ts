@@ -45,6 +45,9 @@ export const blockStyleSchema = v.object({
   opacity: v.optional(v.number(), 100),
   shadow: v.optional(v.boolean(), false),
   border: v.optional(v.boolean(), false),
+  borderWidth: v.optional(v.number(), 1),
+  borderColor: v.optional(v.string(), ""),
+  rotation: v.optional(v.number(), 0),
   hidden: v.optional(v.boolean(), false),
 });
 
@@ -265,6 +268,21 @@ function newId(): string {
   return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
+}
+
+// Copy a block for insertion: give it a fresh id and nudge every breakpoint
+// frame diagonally, so a duplicated or pasted block does not land exactly on
+// top of its source. Used by both the duplicate action and paste.
+export function cloneBlock(block: Block): Block {
+  const shift = (f: Frame | undefined): Frame | undefined =>
+    f ? { ...f, x: f.x + GRID * 2, y: f.y + GRID * 2 } : undefined;
+  return {
+    ...block,
+    id: newId(),
+    frame: shift(block.frame),
+    frameTablet: shift(block.frameTablet),
+    frameMobile: shift(block.frameMobile),
+  } as Block;
 }
 
 // Sensible starter content for each block type so a new section looks complete.

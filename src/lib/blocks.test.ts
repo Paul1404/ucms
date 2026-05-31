@@ -7,6 +7,7 @@ import {
   BREAKPOINTS,
   blockSchema,
   blocksSchema,
+  cloneBlock,
   createBlock,
   DESIGN_WIDTH,
   type Frame,
@@ -96,6 +97,44 @@ describe("placeNewBlock", () => {
     const firstBottom = (first.frame?.y ?? 0) + (first.frame?.h ?? 0);
     expect(second.y).toBeGreaterThan(firstBottom);
     expect(second.z).toBeGreaterThan(first.frame?.z ?? 1);
+  });
+});
+
+describe("cloneBlock", () => {
+  const withFrames = (): Block =>
+    ({
+      ...createBlock("text"),
+      frame: { x: 100, y: 50, w: 400, h: 200, z: 3 },
+      frameMobile: { x: 10, y: 20, w: 300, h: 150, z: 1 },
+    }) as Block;
+
+  it("gives the copy a fresh id", () => {
+    const src = withFrames();
+    const copy = cloneBlock(src);
+    expect(copy.id).not.toBe(src.id);
+    expect(copy.id).toBeTruthy();
+  });
+
+  it("offsets every defined frame and leaves undefined ones undefined", () => {
+    const src = withFrames();
+    const copy = cloneBlock(src);
+    expect(copy.frame).toEqual({ ...src.frame, x: 116, y: 66 });
+    expect(copy.frameMobile).toEqual({ ...src.frameMobile, x: 26, y: 36 });
+    expect(copy.frameTablet).toBeUndefined();
+  });
+
+  it("keeps the copy a valid block and preserves content", () => {
+    const src = { ...createBlock("hero"), heading: "Hallo" } as Block;
+    const copy = cloneBlock(src);
+    expect(v.safeParse(blockSchema, copy).success).toBe(true);
+    if (copy.type === "hero") expect(copy.heading).toBe("Hallo");
+  });
+
+  it("does not mutate the source block", () => {
+    const src = withFrames();
+    const before = JSON.stringify(src);
+    cloneBlock(src);
+    expect(JSON.stringify(src)).toBe(before);
   });
 });
 
