@@ -2,6 +2,7 @@ import { Copy, Eye, EyeOff, Move, Trash2 } from "lucide-react";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { BlockView, CanvasModeContext } from "@/components/blocks/block-view";
 import { framePosition, frameVisual } from "@/components/blocks/canvas-view";
+import { framesIntersect, snapDimension } from "@/lib/arrange";
 import {
   type Block,
   BREAKPOINTS,
@@ -16,29 +17,58 @@ import { cn } from "@/lib/utils";
 
 // Threshold (in design pixels) within which edges snap to a smart guide.
 const SNAP_T = 6;
+// Pointer travel (in client pixels) before a press on empty canvas becomes a
+// marquee rather than a click-to-deselect.
+const MARQUEE_T = 4;
 
 interface Props {
   blocks: Block[];
   device: Device;
   height: number;
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-  onChange: (block: Block) => void;
-  onDuplicate: (id: string) => void;
-  onDelete: (id: string) => void;
+  selectedIds: string[];
+  onSelect: (id: string | null, additive: boolean) => void;
+  onMarquee: (ids: string[], additive: boolean) => void;
+  // Inline text edits commit a single block; drag/resize commit one or more.
+  onChangeSingle: (block: Block) => void;
+  onChangeMany: (blocks: Block[]) => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onToggleHidden: () => void;
+  // Reports the cursor position in design coordinates while hovering the canvas
+  // (null on leave), so paste can drop blocks under the cursor.
+  onHoverCanvas?: (pos: { x: number; y: number } | null) => void;
 }
 
-type DragState = {
-  id: string;
+type BlockDrag = {
+  kind: "block";
   mode: "move" | "resize";
+  primary: string;
+  ids: string[];
   startX: number;
   startY: number;
-  orig: Frame;
+  origs: Map<string, Frame>;
   vlines: number[];
   hlines: number[];
+  // Sibling widths/heights, so a resize can snap to match a neighbour's size.
+  wsizes: number[];
+  hsizes: number[];
+  moved: boolean;
+  // When a click (no drag) lands on a block that was already part of a larger
+  // selection, collapse the selection down to just that block on pointer-up.
+  collapse: boolean;
 };
 
+type MarqueeDrag = {
+  kind: "marquee";
+  startX: number;
+  startY: number;
+  additive: boolean;
+  moved: boolean;
+};
+
+type DragState = BlockDrag | MarqueeDrag;
 type Guides = { x: number[]; y: number[] };
+type Rect = { x: number; y: number; w: number; h: number };
 
 // Snap a set of anchor positions to the nearest guide line, returning the
 // shift to apply and the line that matched (for drawing the guide).
@@ -57,20 +87,26 @@ function nearestSnap(anchors: number[], lines: number[]): { delta: number; line:
 
 // Interactive free-form canvas for one breakpoint. Blocks are absolutely
 // positioned; drag the move grip to reposition and the corner handle to resize.
-// Edges snap to other blocks and the canvas center with smart guides. Edits
-// commit to history only on pointer-up so a drag is a single undo step.
+// Shift-click adds to the selection, and dragging on empty canvas draws a
+// marquee. Edges snap to other blocks and the canvas center with smart guides.
+// Edits commit to history only on pointer-up so a drag is a single undo step.
 export function FreeCanvas({
   blocks,
   device,
   height,
-  selectedId,
+  selectedIds,
   onSelect,
-  onChange,
+  onMarquee,
+  onChangeSingle,
+  onChangeMany,
   onDuplicate,
   onDelete,
+  onToggleHidden,
+  onHoverCanvas,
 }: Props) {
   const designWidth = BREAKPOINTS[device].width;
   const wrapRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(designWidth);
   useEffect(() => {
     const el = wrapRef.current;
@@ -87,27 +123,80 @@ export function FreeCanvas({
   scaleRef.current = scale;
   const blocksRef = useRef(blocks);
   blocksRef.current = blocks;
+  const selectedRef = useRef(selectedIds);
+  selectedRef.current = selectedIds;
 
   const dragRef = useRef<DragState | null>(null);
-  const previewRef = useRef<{ id: string; frame: Frame } | null>(null);
-  const [preview, setPreview] = useState<{ id: string; frame: Frame } | null>(null);
+  const previewRef = useRef<Map<string, Frame> | null>(null);
+  const [preview, setPreview] = useState<Map<string, Frame> | null>(null);
   const [guides, setGuides] = useState<Guides>({ x: [], y: [] });
+  const [marquee, setMarquee] = useState<Rect | null>(null);
+  const marqueeRef = useRef<Rect | null>(null);
+  marqueeRef.current = marquee;
+  // Live size readout shown next to the resize handle, with flags for whether a
+  // dimension is currently snapped to match a sibling.
+  const [sizeBadge, setSizeBadge] = useState<{
+    w: number;
+    h: number;
+    matchW: boolean;
+    matchH: boolean;
+  } | null>(null);
 
+  // Translate a client point into design-space coordinates on the canvas.
+  function toDesign(clientX: number, clientY: number): { x: number; y: number } {
+    const rect = boxRef.current?.getBoundingClientRect();
+    const s = scaleRef.current;
+    if (!rect) return { x: 0, y: 0 };
+    return { x: (clientX - rect.left) / s, y: (clientY - rect.top) / s };
+  }
+
+  // The ids that move when a given block is dragged: the whole selection if the
+  // block is part of it, otherwise the block's own group (or just itself).
+  function dragSet(id: string): string[] {
+    if (selectedRef.current.includes(id)) return selectedRef.current;
+    const b = blocksRef.current.find((x) => x.id === id);
+    if (b?.group) return blocksRef.current.filter((x) => x.group === b.group).map((x) => x.id);
+    return [id];
+  }
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: handlers read refs and listed deps; toDesign only reads refs
   useEffect(() => {
     function onMove(e: PointerEvent) {
       const d = dragRef.current;
       if (!d) return;
+
+      if (d.kind === "marquee") {
+        const a = toDesign(d.startX, d.startY);
+        const b = toDesign(e.clientX, e.clientY);
+        if (
+          Math.abs(e.clientX - d.startX) > MARQUEE_T ||
+          Math.abs(e.clientY - d.startY) > MARQUEE_T
+        )
+          d.moved = true;
+        setMarquee({
+          x: Math.min(a.x, b.x),
+          y: Math.min(a.y, b.y),
+          w: Math.abs(a.x - b.x),
+          h: Math.abs(a.y - b.y),
+        });
+        return;
+      }
+
       const dx = (e.clientX - d.startX) / scaleRef.current;
       const dy = (e.clientY - d.startY) / scaleRef.current;
+      if (Math.abs(e.clientX - d.startX) > MARQUEE_T || Math.abs(e.clientY - d.startY) > MARQUEE_T)
+        d.moved = true;
       const activeX: number[] = [];
       const activeY: number[] = [];
-      let frame: Frame;
+      const next = new Map<string, Frame>();
 
       if (d.mode === "move") {
-        let x = Math.max(0, d.orig.x + dx);
-        let y = Math.max(0, d.orig.y + dy);
-        const sx = nearestSnap([x, x + d.orig.w / 2, x + d.orig.w], d.vlines);
-        const sy = nearestSnap([y, y + d.orig.h / 2, y + d.orig.h], d.hlines);
+        const o = d.origs.get(d.primary);
+        if (!o) return;
+        let x = Math.max(0, o.x + dx);
+        let y = Math.max(0, o.y + dy);
+        const sx = nearestSnap([x, x + o.w / 2, x + o.w], d.vlines);
+        const sy = nearestSnap([y, y + o.h / 2, y + o.h], d.hlines);
         if (sx) {
           x += sx.delta;
           activeX.push(sx.line);
@@ -120,60 +209,122 @@ export function FreeCanvas({
         } else {
           y = snap(y);
         }
-        frame = { ...d.orig, x: Math.max(0, x), y: Math.max(0, y) };
+        // Shift every dragged frame by the primary's snapped delta so the group
+        // keeps its relative layout.
+        const ddx = x - o.x;
+        const ddy = y - o.y;
+        for (const [id, of] of d.origs) {
+          next.set(id, { ...of, x: Math.max(0, of.x + ddx), y: Math.max(0, of.y + ddy) });
+        }
+        setSizeBadge(null);
       } else {
-        let w = Math.max(GRID * 6, d.orig.w + dx);
-        let h = Math.max(GRID * 4, d.orig.h + dy);
-        const sx = nearestSnap([d.orig.x + w], d.vlines);
-        const sy = nearestSnap([d.orig.y + h], d.hlines);
-        if (sx) {
-          w += sx.delta;
-          activeX.push(sx.line);
+        const o = d.origs.get(d.primary);
+        if (!o) return;
+        let w = Math.max(GRID * 6, o.w + dx);
+        let h = Math.max(GRID * 4, o.h + dy);
+        // Each dimension snaps either to a guide line (the right/bottom edge
+        // aligning to a neighbour) or to a sibling's exact size, whichever is
+        // nearer. Edge snaps draw a guide; size matches light up the badge.
+        const ws = snapDimension(w, o.x + w, d.vlines, d.wsizes, SNAP_T);
+        if (ws.snapped) {
+          w += ws.delta;
+          if (ws.line !== null) activeX.push(ws.line);
         } else {
           w = snap(w);
         }
-        if (sy) {
-          h += sy.delta;
-          activeY.push(sy.line);
+        const hs = snapDimension(h, o.y + h, d.hlines, d.hsizes, SNAP_T);
+        if (hs.snapped) {
+          h += hs.delta;
+          if (hs.line !== null) activeY.push(hs.line);
         } else {
           h = snap(h);
         }
-        frame = { ...d.orig, w: Math.max(GRID * 6, w), h: Math.max(GRID * 4, h) };
+        w = Math.max(GRID * 6, w);
+        h = Math.max(GRID * 4, h);
+        next.set(d.primary, { ...o, w, h });
+        setSizeBadge({
+          w: Math.round(w),
+          h: Math.round(h),
+          matchW: ws.matched,
+          matchH: hs.matched,
+        });
       }
 
-      previewRef.current = { id: d.id, frame };
-      setPreview({ id: d.id, frame });
+      previewRef.current = next;
+      setPreview(new Map(next));
       setGuides({ x: activeX, y: activeY });
     }
+
     function onUp() {
       const d = dragRef.current;
-      const p = previewRef.current;
       dragRef.current = null;
-      if (d && p) {
-        const block = blocksRef.current.find((b) => b.id === d.id);
-        if (block) onChange(setFrame(block, device, p.frame));
+
+      if (d?.kind === "marquee") {
+        if (d.moved && marqueeRef.current) {
+          const r = marqueeRef.current;
+          const ids = blocksRef.current
+            .filter((b) => !b.style?.hidden && framesIntersect(getFrame(b, device), r))
+            .map((b) => b.id);
+          onMarquee(ids, d.additive);
+        } else if (!d.moved) {
+          onSelect(null, false);
+        }
+        setMarquee(null);
+        return;
+      }
+
+      if (d?.kind === "block") {
+        const p = previewRef.current;
+        if (d.moved && p) {
+          const updated: Block[] = [];
+          for (const [id, frame] of p) {
+            const block = blocksRef.current.find((b) => b.id === id);
+            if (block) updated.push(setFrame(block, device, frame));
+          }
+          if (updated.length) onChangeMany(updated);
+        } else if (!d.moved && d.collapse) {
+          // A plain click inside a multi-selection narrows it to this block.
+          onSelect(d.primary, false);
+        }
       }
       previewRef.current = null;
       setPreview(null);
       setGuides({ x: [], y: [] });
+      setSizeBadge(null);
     }
+
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [onChange, device]);
+  }, [onChangeMany, onMarquee, onSelect, device]);
 
   function startDrag(e: React.PointerEvent, block: Block, mode: "move" | "resize") {
     e.preventDefault();
     e.stopPropagation();
-    onSelect(block.id);
-    // Build snap lines from the other blocks plus the canvas center and edges.
+
+    // Shift-click toggles membership without starting a drag.
+    if (mode === "move" && e.shiftKey) {
+      onSelect(block.id, true);
+      return;
+    }
+
+    const wasSelected = selectedRef.current.includes(block.id);
+    const ids = dragSet(block.id);
+    // Select on press so a drag moves the block immediately. If it was already
+    // part of a larger selection, defer narrowing until pointer-up (a click).
+    if (!wasSelected) onSelect(block.id, false);
+    const collapse = mode === "move" && wasSelected && selectedRef.current.length > 1;
+
+    const moving = new Set(ids);
     const vlines = new Set<number>([0, designWidth / 2, designWidth]);
     const hlines = new Set<number>([0, height / 2, height]);
+    const wsizes = new Set<number>();
+    const hsizes = new Set<number>();
     for (const b of blocksRef.current) {
-      if (b.id === block.id || b.style?.hidden) continue;
+      if (moving.has(b.id) || b.style?.hidden) continue;
       const f = getFrame(b, device);
       vlines
         .add(f.x)
@@ -183,34 +334,53 @@ export function FreeCanvas({
         .add(f.y)
         .add(f.y + f.h / 2)
         .add(f.y + f.h);
+      wsizes.add(f.w);
+      hsizes.add(f.h);
+    }
+    const origs = new Map<string, Frame>();
+    for (const id of ids) {
+      const b = blocksRef.current.find((x) => x.id === id);
+      if (b) origs.set(id, getFrame(b, device));
     }
     dragRef.current = {
-      id: block.id,
+      kind: "block",
       mode,
+      primary: block.id,
+      ids,
       startX: e.clientX,
       startY: e.clientY,
-      orig: getFrame(block, device),
+      origs,
       vlines: [...vlines],
       hlines: [...hlines],
+      wsizes: [...wsizes],
+      hsizes: [...hsizes],
+      moved: false,
+      collapse,
     };
   }
 
-  function toggleHidden(block: Block) {
-    onChange({
-      ...block,
-      style: { ...(block.style ?? {}), hidden: !block.style?.hidden },
-    } as Block);
+  function startMarquee(e: React.PointerEvent) {
+    // Only the empty backdrop starts a marquee; blocks stop propagation.
+    if (e.button !== 0) return;
+    dragRef.current = {
+      kind: "marquee",
+      startX: e.clientX,
+      startY: e.clientY,
+      additive: e.shiftKey,
+      moved: false,
+    };
   }
 
   const ordered = [...blocks].sort(
     (a, b) => (getFrame(a, device).z ?? 1) - (getFrame(b, device).z ?? 1),
   );
+  const primaryId = selectedIds[0];
+  const selectedSet = new Set(selectedIds);
 
   return (
     <div ref={wrapRef} className="w-full">
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: deselect affordance, keyboard handled globally */}
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: canvas backdrop */}
       <div
+        ref={boxRef}
         className="relative mx-auto overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] shadow-sm"
         style={{
           width: designWidth * scale,
@@ -218,7 +388,12 @@ export function FreeCanvas({
           backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px)",
           backgroundSize: `${GRID * 3 * scale}px ${GRID * 3 * scale}px`,
         }}
-        onClick={() => onSelect(null)}
+        onPointerDown={startMarquee}
+        onPointerMove={(e) => {
+          if (dragRef.current || !onHoverCanvas) return;
+          onHoverCanvas(toDesign(e.clientX, e.clientY));
+        }}
+        onPointerLeave={() => onHoverCanvas?.(null)}
       >
         <div
           style={{
@@ -231,8 +406,9 @@ export function FreeCanvas({
         >
           <CanvasModeContext.Provider value={true}>
             {ordered.map((block) => {
-              const f = preview?.id === block.id ? preview.frame : getFrame(block, device);
-              const selected = block.id === selectedId;
+              const f = preview?.get(block.id) ?? getFrame(block, device);
+              const selected = selectedSet.has(block.id);
+              const isPrimary = block.id === primaryId;
               const hidden = Boolean(block.style?.hidden);
               const posStyle: CSSProperties = {
                 ...framePosition(f),
@@ -240,16 +416,10 @@ export function FreeCanvas({
                 opacity: hidden ? 0.4 : (frameVisual(block).opacity ?? 1),
               };
               return (
-                // biome-ignore lint/a11y/useKeyWithClickEvents: selection via pointer; keyboard handled globally
-                // biome-ignore lint/a11y/noStaticElementInteractions: positioned block wrapper
                 <div
                   key={block.id}
                   style={posStyle}
                   onPointerDown={(e) => startDrag(e, block, "move")}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelect(block.id);
-                  }}
                   className={cn(
                     "group outline-offset-2",
                     selected
@@ -258,10 +428,10 @@ export function FreeCanvas({
                   )}
                 >
                   <div className="h-full w-full overflow-hidden">
-                    <BlockView block={block} edit={{ onChange }} />
+                    <BlockView block={block} edit={{ onChange: onChangeSingle }} />
                   </div>
 
-                  {selected ? (
+                  {isPrimary ? (
                     <>
                       <div
                         data-no-drag
@@ -282,7 +452,7 @@ export function FreeCanvas({
                           title={hidden ? "Einblenden" : "Ausblenden"}
                           onClick={(e) => {
                             e.stopPropagation();
-                            toggleHidden(block);
+                            onToggleHidden();
                           }}
                           className="rounded p-1 text-[var(--color-muted-foreground)] hover:bg-[var(--color-accent)]"
                         >
@@ -294,7 +464,7 @@ export function FreeCanvas({
                           title="Duplizieren"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onDuplicate(block.id);
+                            onDuplicate();
                           }}
                           className="rounded p-1 text-[var(--color-muted-foreground)] hover:bg-[var(--color-accent)]"
                         >
@@ -306,24 +476,49 @@ export function FreeCanvas({
                           title="Löschen"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onDelete(block.id);
+                            onDelete();
                           }}
                           className="rounded p-1 text-[var(--color-muted-foreground)] hover:bg-[var(--color-destructive)] hover:text-white"
                         >
                           <Trash2 className="size-4" />
                         </button>
                       </div>
-                      {/* Resize handle */}
-                      <div
-                        data-no-drag
-                        onPointerDown={(e) => startDrag(e, block, "resize")}
-                        className="absolute -bottom-1.5 -right-1.5 z-50 size-4 cursor-nwse-resize rounded-sm border-2 border-[var(--color-primary)] bg-[var(--color-background)]"
-                      />
+                      {/* Resize handle, only when a single block is selected */}
+                      {selectedIds.length === 1 ? (
+                        <div
+                          data-no-drag
+                          onPointerDown={(e) => startDrag(e, block, "resize")}
+                          className="absolute -bottom-1.5 -right-1.5 z-50 size-4 cursor-nwse-resize rounded-sm border-2 border-[var(--color-primary)] bg-[var(--color-background)]"
+                        />
+                      ) : null}
+                      {/* Live dimensions while resizing; a snapped axis lights up */}
+                      {sizeBadge ? (
+                        <div
+                          data-no-drag
+                          className="pointer-events-none absolute -bottom-7 right-0 z-50 flex gap-1 rounded bg-[var(--color-foreground)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-background)] shadow"
+                        >
+                          <span className={sizeBadge.matchW ? "text-[var(--color-primary)]" : ""}>
+                            {sizeBadge.w}
+                          </span>
+                          <span>×</span>
+                          <span className={sizeBadge.matchH ? "text-[var(--color-primary)]" : ""}>
+                            {sizeBadge.h}
+                          </span>
+                        </div>
+                      ) : null}
                     </>
                   ) : null}
                 </div>
               );
             })}
+
+            {/* Marquee rectangle */}
+            {marquee ? (
+              <div
+                className="pointer-events-none absolute z-[70] border border-[var(--color-primary)] bg-[var(--color-primary)]/10"
+                style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }}
+              />
+            ) : null}
 
             {/* Smart alignment guides */}
             {guides.x.map((x) => (

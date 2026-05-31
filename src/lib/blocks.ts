@@ -45,6 +45,9 @@ export const blockStyleSchema = v.object({
   opacity: v.optional(v.number(), 100),
   shadow: v.optional(v.boolean(), false),
   border: v.optional(v.boolean(), false),
+  borderWidth: v.optional(v.number(), 1),
+  borderColor: v.optional(v.string(), ""),
+  rotation: v.optional(v.number(), 0),
   hidden: v.optional(v.boolean(), false),
 });
 
@@ -57,6 +60,10 @@ const styleFields = {
   frameTablet: v.optional(frameSchema),
   frameMobile: v.optional(frameSchema),
   style: v.optional(blockStyleSchema),
+  // Blocks that share a group id are selected and moved together. Grouping is
+  // purely a selection concept: blocks stay flat and absolutely positioned, so
+  // rendering is unaffected.
+  group: v.optional(v.string()),
 };
 
 export type Frame = v.InferOutput<typeof frameSchema>;
@@ -265,6 +272,77 @@ function newId(): string {
   return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
+}
+
+// Copy a block for insertion: give it a fresh id and shift every breakpoint
+// frame by `offset`, so a duplicated or pasted block does not land exactly on
+// top of its source. The default offset nudges it diagonally; paste passes an
+// explicit offset to drop the copy at the cursor.
+export function cloneBlock(
+  block: Block,
+  offset: { x: number; y: number } = { x: GRID * 2, y: GRID * 2 },
+): Block {
+  const shift = (f: Frame | undefined): Frame | undefined =>
+    f ? { ...f, x: Math.max(0, f.x + offset.x), y: Math.max(0, f.y + offset.y) } : undefined;
+  return {
+    ...block,
+    id: newId(),
+    frame: shift(block.frame),
+    frameTablet: shift(block.frameTablet),
+    frameMobile: shift(block.frameMobile),
+  } as Block;
+}
+
+// Clone several blocks at once, remapping group ids so a duplicated or pasted
+// selection stays grouped together but stays distinct from the originals. Every
+// block shifts by the same offset, so the group keeps its relative layout.
+export function cloneMany(blocks: Block[], offset?: { x: number; y: number }): Block[] {
+  const remap = new Map<string, string>();
+  return blocks.map((b) => {
+    const copy = cloneBlock(b, offset);
+    if (b.group) {
+      let g = remap.get(b.group);
+      if (!g) {
+        g = newId();
+        remap.set(b.group, g);
+      }
+      return { ...copy, group: g } as Block;
+    }
+    return copy;
+  });
+}
+
+// Reassign z on the given device so the stacking matches an explicit top-to-
+// bottom order of block ids (the first id ends up on top). Blocks not named in
+// the order keep their place. Used by the layers panel to reorder.
+export function applyLayerOrder(
+  blocks: Block[],
+  orderTopToBottom: string[],
+  device: Device,
+): Block[] {
+  const n = orderTopToBottom.length;
+  const zById = new Map(orderTopToBottom.map((id, i) => [id, n - i]));
+  return blocks.map((b) => {
+    const z = zById.get(b.id);
+    if (z === undefined) return b;
+    return setFrame(b, device, { ...getFrame(b, device), z });
+  });
+}
+
+// Expand a set of selected ids to include every block that shares a group with
+// any selected block, returned in canvas (array) order. Selecting one member of
+// a group selects the whole group.
+export function groupIdsOf(blocks: Block[], ids: string[]): string[] {
+  const selected = new Set(ids);
+  const groups = new Set<string>();
+  for (const b of blocks) {
+    if (selected.has(b.id) && b.group) groups.add(b.group);
+  }
+  const result: string[] = [];
+  for (const b of blocks) {
+    if (selected.has(b.id) || (b.group && groups.has(b.group))) result.push(b.id);
+  }
+  return result;
 }
 
 // Sensible starter content for each block type so a new section looks complete.

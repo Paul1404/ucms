@@ -1,17 +1,21 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 import {
+  applyLayerOrder,
   BLOCK_LABELS,
   type Block,
   type BlockType,
   BREAKPOINTS,
   blockSchema,
   blocksSchema,
+  cloneBlock,
+  cloneMany,
   createBlock,
   DESIGN_WIDTH,
   type Frame,
   GRID,
   getFrame,
+  groupIdsOf,
   hasOwnFrame,
   placeNewBlock,
   reflowFrame,
@@ -96,6 +100,121 @@ describe("placeNewBlock", () => {
     const firstBottom = (first.frame?.y ?? 0) + (first.frame?.h ?? 0);
     expect(second.y).toBeGreaterThan(firstBottom);
     expect(second.z).toBeGreaterThan(first.frame?.z ?? 1);
+  });
+});
+
+describe("cloneBlock", () => {
+  const withFrames = (): Block =>
+    ({
+      ...createBlock("text"),
+      frame: { x: 100, y: 50, w: 400, h: 200, z: 3 },
+      frameMobile: { x: 10, y: 20, w: 300, h: 150, z: 1 },
+    }) as Block;
+
+  it("gives the copy a fresh id", () => {
+    const src = withFrames();
+    const copy = cloneBlock(src);
+    expect(copy.id).not.toBe(src.id);
+    expect(copy.id).toBeTruthy();
+  });
+
+  it("offsets every defined frame and leaves undefined ones undefined", () => {
+    const src = withFrames();
+    const copy = cloneBlock(src);
+    expect(copy.frame).toEqual({ ...src.frame, x: 116, y: 66 });
+    expect(copy.frameMobile).toEqual({ ...src.frameMobile, x: 26, y: 36 });
+    expect(copy.frameTablet).toBeUndefined();
+  });
+
+  it("keeps the copy a valid block and preserves content", () => {
+    const src = { ...createBlock("hero"), heading: "Hallo" } as Block;
+    const copy = cloneBlock(src);
+    expect(v.safeParse(blockSchema, copy).success).toBe(true);
+    if (copy.type === "hero") expect(copy.heading).toBe("Hallo");
+  });
+
+  it("does not mutate the source block", () => {
+    const src = withFrames();
+    const before = JSON.stringify(src);
+    cloneBlock(src);
+    expect(JSON.stringify(src)).toBe(before);
+  });
+});
+
+describe("cloneMany", () => {
+  it("keeps a duplicated group together but distinct from the original", () => {
+    const a = { ...createBlock("text"), group: "g1" } as Block;
+    const b = { ...createBlock("image"), group: "g1" } as Block;
+    const copies = cloneMany([a, b]);
+    expect(copies[0]?.group).toBe(copies[1]?.group);
+    expect(copies[0]?.group).not.toBe("g1");
+    expect(copies[0]?.id).not.toBe(a.id);
+  });
+
+  it("remaps separate groups to separate new ids", () => {
+    const a = { ...createBlock("text"), group: "g1" } as Block;
+    const b = { ...createBlock("text"), group: "g2" } as Block;
+    const ungrouped = createBlock("cta") as Block;
+    const copies = cloneMany([a, b, ungrouped]);
+    expect(copies[0]?.group).not.toBe(copies[1]?.group);
+    expect(copies[2]?.group).toBeUndefined();
+  });
+
+  it("shifts every block by an explicit offset, preserving relative layout", () => {
+    const a = { ...createBlock("text"), frame: { x: 100, y: 100, w: 200, h: 100, z: 1 } } as Block;
+    const b = { ...createBlock("text"), frame: { x: 400, y: 160, w: 200, h: 100, z: 1 } } as Block;
+    const copies = cloneMany([a, b], { x: 50, y: -20 });
+    expect(copies[0]?.frame).toMatchObject({ x: 150, y: 80 });
+    expect(copies[1]?.frame).toMatchObject({ x: 450, y: 140 });
+  });
+
+  it("never moves a frame to a negative coordinate", () => {
+    const a = { ...createBlock("text"), frame: { x: 10, y: 10, w: 200, h: 100, z: 1 } } as Block;
+    const copies = cloneMany([a], { x: -50, y: -50 });
+    expect(copies[0]?.frame).toMatchObject({ x: 0, y: 0 });
+  });
+});
+
+describe("applyLayerOrder", () => {
+  const make = (id: string, z: number): Block =>
+    ({ ...createBlock("text"), id, frame: { x: 0, y: 0, w: 100, h: 100, z } }) as Block;
+
+  it("reassigns z so the stacking matches the given top-to-bottom order", () => {
+    const blocks = [make("a", 1), make("b", 2), make("c", 3)];
+    const out = applyLayerOrder(blocks, ["c", "a", "b"], "desktop");
+    const z = (id: string) => getFrame(out.find((x) => x.id === id) as Block, "desktop").z;
+    // First in the order is on top (highest z).
+    expect(z("c")).toBeGreaterThan(z("a") ?? 0);
+    expect(z("a")).toBeGreaterThan(z("b") ?? 0);
+  });
+
+  it("only writes the targeted breakpoint", () => {
+    const blocks = [make("a", 1), make("b", 2)];
+    const out = applyLayerOrder(blocks, ["a", "b"], "mobile");
+    const a = out.find((x) => x.id === "a") as Block;
+    expect(a.frameMobile).toBeDefined();
+    expect(a.frame).toEqual(blocks[0]?.frame);
+  });
+});
+
+describe("groupIdsOf", () => {
+  const blocks = [
+    { ...createBlock("text"), id: "a", group: "g1" },
+    { ...createBlock("text"), id: "b", group: "g1" },
+    { ...createBlock("text"), id: "c" },
+    { ...createBlock("text"), id: "d", group: "g2" },
+  ] as Block[];
+
+  it("expands a selection to every block sharing a group", () => {
+    expect(groupIdsOf(blocks, ["a"])).toEqual(["a", "b"]);
+  });
+
+  it("leaves an ungrouped block as just itself", () => {
+    expect(groupIdsOf(blocks, ["c"])).toEqual(["c"]);
+  });
+
+  it("merges multiple groups and loose blocks, in canvas order", () => {
+    expect(groupIdsOf(blocks, ["b", "c", "d"])).toEqual(["a", "b", "c", "d"]);
   });
 });
 

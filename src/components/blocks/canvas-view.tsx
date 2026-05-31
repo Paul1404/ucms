@@ -34,7 +34,12 @@ export function frameVisual(block: Block): CSSProperties {
   if (s.bg) style.backgroundColor = s.bg;
   if (s.color) style.color = s.color;
   if (s.shadow) style.boxShadow = "0 10px 30px rgba(0,0,0,0.12)";
-  if (s.border) style.border = "1px solid rgba(0,0,0,0.1)";
+  if (s.border) {
+    const width = s.borderWidth ?? 1;
+    const color = s.borderColor || "rgba(0,0,0,0.1)";
+    style.border = `${width}px solid ${color}`;
+  }
+  if (s.rotation) style.transform = `rotate(${s.rotation}deg)`;
   return style;
 }
 
