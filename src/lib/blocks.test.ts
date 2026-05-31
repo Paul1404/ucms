@@ -8,11 +8,13 @@ import {
   blockSchema,
   blocksSchema,
   cloneBlock,
+  cloneMany,
   createBlock,
   DESIGN_WIDTH,
   type Frame,
   GRID,
   getFrame,
+  groupIdsOf,
   hasOwnFrame,
   placeNewBlock,
   reflowFrame,
@@ -135,6 +137,47 @@ describe("cloneBlock", () => {
     const before = JSON.stringify(src);
     cloneBlock(src);
     expect(JSON.stringify(src)).toBe(before);
+  });
+});
+
+describe("cloneMany", () => {
+  it("keeps a duplicated group together but distinct from the original", () => {
+    const a = { ...createBlock("text"), group: "g1" } as Block;
+    const b = { ...createBlock("image"), group: "g1" } as Block;
+    const copies = cloneMany([a, b]);
+    expect(copies[0]?.group).toBe(copies[1]?.group);
+    expect(copies[0]?.group).not.toBe("g1");
+    expect(copies[0]?.id).not.toBe(a.id);
+  });
+
+  it("remaps separate groups to separate new ids", () => {
+    const a = { ...createBlock("text"), group: "g1" } as Block;
+    const b = { ...createBlock("text"), group: "g2" } as Block;
+    const ungrouped = createBlock("cta") as Block;
+    const copies = cloneMany([a, b, ungrouped]);
+    expect(copies[0]?.group).not.toBe(copies[1]?.group);
+    expect(copies[2]?.group).toBeUndefined();
+  });
+});
+
+describe("groupIdsOf", () => {
+  const blocks = [
+    { ...createBlock("text"), id: "a", group: "g1" },
+    { ...createBlock("text"), id: "b", group: "g1" },
+    { ...createBlock("text"), id: "c" },
+    { ...createBlock("text"), id: "d", group: "g2" },
+  ] as Block[];
+
+  it("expands a selection to every block sharing a group", () => {
+    expect(groupIdsOf(blocks, ["a"])).toEqual(["a", "b"]);
+  });
+
+  it("leaves an ungrouped block as just itself", () => {
+    expect(groupIdsOf(blocks, ["c"])).toEqual(["c"]);
+  });
+
+  it("merges multiple groups and loose blocks, in canvas order", () => {
+    expect(groupIdsOf(blocks, ["b", "c", "d"])).toEqual(["a", "b", "c", "d"]);
   });
 });
 

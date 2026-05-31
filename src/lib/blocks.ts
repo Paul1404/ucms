@@ -60,6 +60,10 @@ const styleFields = {
   frameTablet: v.optional(frameSchema),
   frameMobile: v.optional(frameSchema),
   style: v.optional(blockStyleSchema),
+  // Blocks that share a group id are selected and moved together. Grouping is
+  // purely a selection concept: blocks stay flat and absolutely positioned, so
+  // rendering is unaffected.
+  group: v.optional(v.string()),
 };
 
 export type Frame = v.InferOutput<typeof frameSchema>;
@@ -283,6 +287,40 @@ export function cloneBlock(block: Block): Block {
     frameTablet: shift(block.frameTablet),
     frameMobile: shift(block.frameMobile),
   } as Block;
+}
+
+// Clone several blocks at once, remapping group ids so a duplicated or pasted
+// selection stays grouped together but stays distinct from the originals.
+export function cloneMany(blocks: Block[]): Block[] {
+  const remap = new Map<string, string>();
+  return blocks.map((b) => {
+    const copy = cloneBlock(b);
+    if (b.group) {
+      let g = remap.get(b.group);
+      if (!g) {
+        g = newId();
+        remap.set(b.group, g);
+      }
+      return { ...copy, group: g } as Block;
+    }
+    return copy;
+  });
+}
+
+// Expand a set of selected ids to include every block that shares a group with
+// any selected block, returned in canvas (array) order. Selecting one member of
+// a group selects the whole group.
+export function groupIdsOf(blocks: Block[], ids: string[]): string[] {
+  const selected = new Set(ids);
+  const groups = new Set<string>();
+  for (const b of blocks) {
+    if (selected.has(b.id) && b.group) groups.add(b.group);
+  }
+  const result: string[] = [];
+  for (const b of blocks) {
+    if (selected.has(b.id) || (b.group && groups.has(b.group))) result.push(b.id);
+  }
+  return result;
 }
 
 // Sensible starter content for each block type so a new section looks complete.
