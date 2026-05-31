@@ -37,6 +37,21 @@ export const auth = betterAuth({
     autoSignIn: true,
     minPasswordLength: 8,
   },
+  user: {
+    // `role` is a custom column. better-auth only returns fields it knows about
+    // in the session user object, so it must be declared here or every
+    // `session.user.role` read comes back undefined (and admins look like
+    // members). `input: false` keeps it out of sign-up/update payloads; the role
+    // is assigned by the create hook below, never by the client.
+    additionalFields: {
+      role: {
+        type: "string",
+        required: false,
+        defaultValue: "member",
+        input: false,
+      },
+    },
+  },
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 days
     updateAge: 60 * 60 * 24, // refresh once per day
