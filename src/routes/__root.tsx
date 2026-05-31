@@ -5,7 +5,6 @@ import { Toaster } from "sonner";
 import { DefaultCatchBoundary } from "@/components/default-catch-boundary";
 import { NotFound } from "@/components/not-found";
 import { ThemeProvider } from "@/components/theme";
-import { orpc } from "@/lib/orpc";
 import appCss from "@/styles/app.css?url";
 
 export interface RouterContext {
@@ -29,13 +28,6 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
-  loader: async ({ context }) => {
-    // Prefetch site-wide data so the header/footer render without a flash.
-    await Promise.all([
-      context.queryClient.ensureQueryData(orpc.settings.get.queryOptions()),
-      context.queryClient.ensureQueryData(orpc.pages.nav.queryOptions()),
-    ]);
-  },
   errorComponent: DefaultCatchBoundary,
   notFoundComponent: () => <NotFound />,
   component: RootComponent,

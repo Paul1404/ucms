@@ -1,13 +1,9 @@
 import { metaRouter } from "./routers/meta";
-import { pagesRouter } from "./routers/pages";
-import { postsRouter } from "./routers/posts";
-import { settingsRouter } from "./routers/settings";
+import { siteRouter } from "./routers/site";
 
 export const router = {
   meta: metaRouter,
-  pages: pagesRouter,
-  posts: postsRouter,
-  settings: settingsRouter,
+  site: siteRouter,
 };
 
 export type AppRouter = typeof router;

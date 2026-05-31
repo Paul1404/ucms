@@ -11,20 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as PublicRouteImport } from './routes/_public'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
-import { Route as PublicIndexRouteImport } from './routes/_public/index'
-import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
-import { Route as PublicSlugRouteImport } from './routes/_public/$slug'
-import { Route as AdminPostsIndexRouteImport } from './routes/admin/posts/index'
-import { Route as AdminPagesIndexRouteImport } from './routes/admin/pages/index'
-import { Route as PublicNewsIndexRouteImport } from './routes/_public/news/index'
-import { Route as AdminPostsNewRouteImport } from './routes/admin/posts/new'
-import { Route as AdminPostsIdRouteImport } from './routes/admin/posts/$id'
-import { Route as AdminPagesNewRouteImport } from './routes/admin/pages/new'
-import { Route as AdminPagesIdRouteImport } from './routes/admin/pages/$id'
-import { Route as PublicNewsSlugRouteImport } from './routes/_public/news/$slug'
 
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
@@ -36,13 +25,14 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PublicRoute = PublicRouteImport.update({
-  id: '/_public',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -50,171 +40,39 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
-const PublicIndexRoute = PublicIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PublicRoute,
-} as any)
-const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const PublicSlugRoute = PublicSlugRouteImport.update({
-  id: '/$slug',
-  path: '/$slug',
-  getParentRoute: () => PublicRoute,
-} as any)
-const AdminPostsIndexRoute = AdminPostsIndexRouteImport.update({
-  id: '/posts/',
-  path: '/posts/',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminPagesIndexRoute = AdminPagesIndexRouteImport.update({
-  id: '/pages/',
-  path: '/pages/',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const PublicNewsIndexRoute = PublicNewsIndexRouteImport.update({
-  id: '/news/',
-  path: '/news/',
-  getParentRoute: () => PublicRoute,
-} as any)
-const AdminPostsNewRoute = AdminPostsNewRouteImport.update({
-  id: '/posts/new',
-  path: '/posts/new',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminPostsIdRoute = AdminPostsIdRouteImport.update({
-  id: '/posts/$id',
-  path: '/posts/$id',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminPagesNewRoute = AdminPagesNewRouteImport.update({
-  id: '/pages/new',
-  path: '/pages/new',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminPagesIdRoute = AdminPagesIdRouteImport.update({
-  id: '/pages/$id',
-  path: '/pages/$id',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const PublicNewsSlugRoute = PublicNewsSlugRouteImport.update({
-  id: '/news/$slug',
-  path: '/news/$slug',
-  getParentRoute: () => PublicRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
-  '/': typeof PublicIndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
-  '/$slug': typeof PublicSlugRoute
-  '/admin/settings': typeof AdminSettingsRoute
   '/admin/': typeof AdminIndexRoute
-  '/news/$slug': typeof PublicNewsSlugRoute
-  '/admin/pages/$id': typeof AdminPagesIdRoute
-  '/admin/pages/new': typeof AdminPagesNewRoute
-  '/admin/posts/$id': typeof AdminPostsIdRoute
-  '/admin/posts/new': typeof AdminPostsNewRoute
-  '/news/': typeof PublicNewsIndexRoute
-  '/admin/pages/': typeof AdminPagesIndexRoute
-  '/admin/posts/': typeof AdminPostsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
-  '/$slug': typeof PublicSlugRoute
-  '/admin/settings': typeof AdminSettingsRoute
-  '/': typeof PublicIndexRoute
   '/admin': typeof AdminIndexRoute
-  '/news/$slug': typeof PublicNewsSlugRoute
-  '/admin/pages/$id': typeof AdminPagesIdRoute
-  '/admin/pages/new': typeof AdminPagesNewRoute
-  '/admin/posts/$id': typeof AdminPostsIdRoute
-  '/admin/posts/new': typeof AdminPostsNewRoute
-  '/news': typeof PublicNewsIndexRoute
-  '/admin/pages': typeof AdminPagesIndexRoute
-  '/admin/posts': typeof AdminPostsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
-  '/_public': typeof PublicRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
-  '/_public/$slug': typeof PublicSlugRoute
-  '/admin/settings': typeof AdminSettingsRoute
-  '/_public/': typeof PublicIndexRoute
   '/admin/': typeof AdminIndexRoute
-  '/_public/news/$slug': typeof PublicNewsSlugRoute
-  '/admin/pages/$id': typeof AdminPagesIdRoute
-  '/admin/pages/new': typeof AdminPagesNewRoute
-  '/admin/posts/$id': typeof AdminPostsIdRoute
-  '/admin/posts/new': typeof AdminPostsNewRoute
-  '/_public/news/': typeof PublicNewsIndexRoute
-  '/admin/pages/': typeof AdminPagesIndexRoute
-  '/admin/posts/': typeof AdminPostsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/admin'
-    | '/'
-    | '/login'
-    | '/setup'
-    | '/$slug'
-    | '/admin/settings'
-    | '/admin/'
-    | '/news/$slug'
-    | '/admin/pages/$id'
-    | '/admin/pages/new'
-    | '/admin/posts/$id'
-    | '/admin/posts/new'
-    | '/news/'
-    | '/admin/pages/'
-    | '/admin/posts/'
+  fullPaths: '/' | '/admin' | '/login' | '/setup' | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/login'
-    | '/setup'
-    | '/$slug'
-    | '/admin/settings'
-    | '/'
-    | '/admin'
-    | '/news/$slug'
-    | '/admin/pages/$id'
-    | '/admin/pages/new'
-    | '/admin/posts/$id'
-    | '/admin/posts/new'
-    | '/news'
-    | '/admin/pages'
-    | '/admin/posts'
-  id:
-    | '__root__'
-    | '/admin'
-    | '/_public'
-    | '/login'
-    | '/setup'
-    | '/_public/$slug'
-    | '/admin/settings'
-    | '/_public/'
-    | '/admin/'
-    | '/_public/news/$slug'
-    | '/admin/pages/$id'
-    | '/admin/pages/new'
-    | '/admin/posts/$id'
-    | '/admin/posts/new'
-    | '/_public/news/'
-    | '/admin/pages/'
-    | '/admin/posts/'
+  to: '/' | '/login' | '/setup' | '/admin'
+  id: '__root__' | '/' | '/admin' | '/login' | '/setup' | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
-  PublicRoute: typeof PublicRouteWithChildren
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
 }
@@ -235,18 +93,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_public': {
-      id: '/_public'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof PublicRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin': {
       id: '/admin'
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -256,132 +114,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
-    '/_public/': {
-      id: '/_public/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof PublicIndexRouteImport
-      parentRoute: typeof PublicRoute
-    }
-    '/admin/settings': {
-      id: '/admin/settings'
-      path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminSettingsRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/_public/$slug': {
-      id: '/_public/$slug'
-      path: '/$slug'
-      fullPath: '/$slug'
-      preLoaderRoute: typeof PublicSlugRouteImport
-      parentRoute: typeof PublicRoute
-    }
-    '/admin/posts/': {
-      id: '/admin/posts/'
-      path: '/posts'
-      fullPath: '/admin/posts/'
-      preLoaderRoute: typeof AdminPostsIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/pages/': {
-      id: '/admin/pages/'
-      path: '/pages'
-      fullPath: '/admin/pages/'
-      preLoaderRoute: typeof AdminPagesIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/_public/news/': {
-      id: '/_public/news/'
-      path: '/news'
-      fullPath: '/news/'
-      preLoaderRoute: typeof PublicNewsIndexRouteImport
-      parentRoute: typeof PublicRoute
-    }
-    '/admin/posts/new': {
-      id: '/admin/posts/new'
-      path: '/posts/new'
-      fullPath: '/admin/posts/new'
-      preLoaderRoute: typeof AdminPostsNewRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/posts/$id': {
-      id: '/admin/posts/$id'
-      path: '/posts/$id'
-      fullPath: '/admin/posts/$id'
-      preLoaderRoute: typeof AdminPostsIdRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/pages/new': {
-      id: '/admin/pages/new'
-      path: '/pages/new'
-      fullPath: '/admin/pages/new'
-      preLoaderRoute: typeof AdminPagesNewRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/pages/$id': {
-      id: '/admin/pages/$id'
-      path: '/pages/$id'
-      fullPath: '/admin/pages/$id'
-      preLoaderRoute: typeof AdminPagesIdRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/_public/news/$slug': {
-      id: '/_public/news/$slug'
-      path: '/news/$slug'
-      fullPath: '/news/$slug'
-      preLoaderRoute: typeof PublicNewsSlugRouteImport
-      parentRoute: typeof PublicRoute
-    }
   }
 }
 
 interface AdminRouteRouteChildren {
-  AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
-  AdminPagesIdRoute: typeof AdminPagesIdRoute
-  AdminPagesNewRoute: typeof AdminPagesNewRoute
-  AdminPostsIdRoute: typeof AdminPostsIdRoute
-  AdminPostsNewRoute: typeof AdminPostsNewRoute
-  AdminPagesIndexRoute: typeof AdminPagesIndexRoute
-  AdminPostsIndexRoute: typeof AdminPostsIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
-  AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
-  AdminPagesIdRoute: AdminPagesIdRoute,
-  AdminPagesNewRoute: AdminPagesNewRoute,
-  AdminPostsIdRoute: AdminPostsIdRoute,
-  AdminPostsNewRoute: AdminPostsNewRoute,
-  AdminPagesIndexRoute: AdminPagesIndexRoute,
-  AdminPostsIndexRoute: AdminPostsIndexRoute,
 }
 
 const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
   AdminRouteRouteChildren,
 )
 
-interface PublicRouteChildren {
-  PublicSlugRoute: typeof PublicSlugRoute
-  PublicIndexRoute: typeof PublicIndexRoute
-  PublicNewsSlugRoute: typeof PublicNewsSlugRoute
-  PublicNewsIndexRoute: typeof PublicNewsIndexRoute
-}
-
-const PublicRouteChildren: PublicRouteChildren = {
-  PublicSlugRoute: PublicSlugRoute,
-  PublicIndexRoute: PublicIndexRoute,
-  PublicNewsSlugRoute: PublicNewsSlugRoute,
-  PublicNewsIndexRoute: PublicNewsIndexRoute,
-}
-
-const PublicRouteWithChildren =
-  PublicRoute._addFileChildren(PublicRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
-  PublicRoute: PublicRouteWithChildren,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
 }

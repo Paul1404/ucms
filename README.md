@@ -1,17 +1,17 @@
 # ucms
 
-A lightweight, self-hostable content management system for small organizations: clubs, parishes, and local businesses that want a simple website without hiring a developer.
+A lightweight, self-hostable website builder for small organizations: clubs, parishes, and local businesses that want a simple one-page website without hiring a developer.
 
-You get a public site with pages and a news feed, and an admin area to edit everything. Content is written in Markdown with a live preview. The first account you create becomes the administrator, and public sign-up is closed after that.
+You build your site by stacking sections (hero, text, gallery, features, call to action, contact, and more), editing each one through plain forms, and dragging them into the order you want. When it looks right, hit Publish. The first account you create becomes the administrator, and public sign-up is closed after that.
 
 ## Features
 
-- Pages with custom slugs, navigation control, and draft/published states
-- News posts with a public feed and individual post pages
-- Markdown editing with live preview
-- Site settings (name, tagline, description, footer, contact email)
+- Visual one-page builder: add sections, edit them in a side panel, drag to reorder
+- Eight section types with sensible starter content so nothing looks empty
+- Built-in image uploads (stored in the database, no S3 or extra setup)
+- Per-section background and spacing, plus a site-wide brand color
+- Draft and Publish: edit privately, publish when ready
 - Email and password authentication
-- Light and dark mode
 - Single Docker image, runs anywhere
 
 ## Tech stack
@@ -29,7 +29,7 @@ bun run db:migrate          # create the tables
 bun run dev                 # http://localhost:3000
 ```
 
-Open the site and you will be sent to `/setup` to create the administrator account. After that, sign in at `/login` and manage content under `/admin`.
+Open the site and you will be sent to `/setup` to create the administrator account. After that, sign in at `/login` and build your site in the editor at `/admin`.
 
 ### Environment variables
 

@@ -1,5 +1,5 @@
 {
-  "id": "25f939f7-ad67-4438-860d-0b7efedce12e",
+  "id": "12bc2d92-c9bb-46be-902f-1b3dff068f55",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -105,8 +105,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.pages": {
-      "name": "pages",
+    "public.media": {
+      "name": "media",
       "schema": "",
       "columns": {
         "id": {
@@ -115,170 +115,29 @@
           "primaryKey": true,
           "notNull": true
         },
-        "slug": {
-          "name": "slug",
+        "mime_type": {
+          "name": "mime_type",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "title": {
-          "name": "title",
+        "data": {
+          "name": "data",
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "excerpt": {
-          "name": "excerpt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "published": {
-          "name": "published",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "show_in_nav": {
-          "name": "show_in_nav",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "nav_order": {
-          "name": "nav_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": true
         }
       },
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "pages_slug_unique": {
-          "name": "pages_slug_unique",
-          "nullsNotDistinct": false,
-          "columns": ["slug"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.posts": {
-      "name": "posts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "slug": {
-          "name": "slug",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "excerpt": {
-          "name": "excerpt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "published": {
-          "name": "published",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "published_at": {
-          "name": "published_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "author_id": {
-          "name": "author_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "posts_author_id_users_id_fk": {
-          "name": "posts_author_id_users_id_fk",
-          "tableFrom": "posts",
-          "tableTo": "users",
-          "columnsFrom": ["author_id"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "posts_slug_unique": {
-          "name": "posts_slug_unique",
-          "nullsNotDistinct": false,
-          "columns": ["slug"]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -360,8 +219,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.site_settings": {
-      "name": "site_settings",
+    "public.sites": {
+      "name": "sites",
       "schema": "",
       "columns": {
         "id": {
@@ -371,43 +230,38 @@
           "notNull": true,
           "default": "'default'"
         },
-        "site_name": {
-          "name": "site_name",
+        "name": {
+          "name": "name",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'ucms'"
+          "default": "'My Site'"
         },
-        "tagline": {
-          "name": "tagline",
-          "type": "text",
+        "draft": {
+          "name": "draft",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "published": {
+          "name": "published",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "description": {
-          "name": "description",
+        "theme_color": {
+          "name": "theme_color",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
-        },
-        "footer_text": {
-          "name": "footer_text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contact_email": {
-          "name": "contact_email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": "'#4338ca'"
         },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": true
         }
       },
       "indexes": {},

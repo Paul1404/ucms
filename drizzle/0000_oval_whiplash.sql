@@ -14,32 +14,11 @@ CREATE TABLE "accounts" (
 	"updated_at" timestamp NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "pages" (
+CREATE TABLE "media" (
 	"id" text PRIMARY KEY NOT NULL,
-	"slug" text NOT NULL,
-	"title" text NOT NULL,
-	"content" text DEFAULT '' NOT NULL,
-	"excerpt" text,
-	"published" boolean DEFAULT false NOT NULL,
-	"show_in_nav" boolean DEFAULT true NOT NULL,
-	"nav_order" integer DEFAULT 0 NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "pages_slug_unique" UNIQUE("slug")
-);
---> statement-breakpoint
-CREATE TABLE "posts" (
-	"id" text PRIMARY KEY NOT NULL,
-	"slug" text NOT NULL,
-	"title" text NOT NULL,
-	"content" text DEFAULT '' NOT NULL,
-	"excerpt" text,
-	"published" boolean DEFAULT false NOT NULL,
-	"published_at" timestamp,
-	"author_id" text,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "posts_slug_unique" UNIQUE("slug")
+	"mime_type" text NOT NULL,
+	"data" text NOT NULL,
+	"created_at" timestamp NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "sessions" (
@@ -54,14 +33,13 @@ CREATE TABLE "sessions" (
 	CONSTRAINT "sessions_token_unique" UNIQUE("token")
 );
 --> statement-breakpoint
-CREATE TABLE "site_settings" (
+CREATE TABLE "sites" (
 	"id" text PRIMARY KEY DEFAULT 'default' NOT NULL,
-	"site_name" text DEFAULT 'ucms' NOT NULL,
-	"tagline" text,
-	"description" text,
-	"footer_text" text,
-	"contact_email" text,
-	"updated_at" timestamp DEFAULT now() NOT NULL
+	"name" text DEFAULT 'My Site' NOT NULL,
+	"draft" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"published" jsonb,
+	"theme_color" text DEFAULT '#4338ca' NOT NULL,
+	"updated_at" timestamp NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "users" (
@@ -86,5 +64,4 @@ CREATE TABLE "verifications" (
 );
 --> statement-breakpoint
 ALTER TABLE "accounts" ADD CONSTRAINT "accounts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "posts" ADD CONSTRAINT "posts_author_id_users_id_fk" FOREIGN KEY ("author_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;

@@ -6,6 +6,7 @@ import {
   type RequestHandler,
 } from "@tanstack/react-start/server";
 import { auth } from "./server/auth";
+import { handleMedia, handleUpload } from "./server/media";
 import { router } from "./server/orpc/router";
 
 const ssrHandler = createStartHandler(defaultStreamHandler);
@@ -24,6 +25,14 @@ async function handle(request: Request): Promise<Response> {
 
   if (pathname.startsWith("/api/auth")) {
     return auth.handler(request);
+  }
+
+  if (pathname === "/api/upload" && request.method === "POST") {
+    return handleUpload(request);
+  }
+
+  if (pathname.startsWith("/media/")) {
+    return handleMedia(decodeURIComponent(pathname.slice("/media/".length)));
   }
 
   if (pathname.startsWith(RPC_PREFIX)) {

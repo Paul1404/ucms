@@ -1,5 +1,5 @@
-import { sql } from "drizzle-orm";
-import { boolean, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import type { Block } from "@/lib/blocks";
 
 // --- better-auth tables (plural names, adapter configured with usePlural) ---
 
@@ -60,49 +60,35 @@ export const verifications = pgTable("verifications", {
   updatedAt: timestamp("updated_at").$defaultFn(() => new Date()),
 });
 
-// --- content tables ---
+// --- site content ---
+// The whole product is a single one-page website. `draft` holds the
+// work-in-progress block list shown in the editor; `published` is the public
+// snapshot. Publishing copies draft into published.
 
-export const pages = pgTable("pages", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  slug: text("slug").notNull().unique(),
-  title: text("title").notNull(),
-  content: text("content").default("").notNull(),
-  excerpt: text("excerpt"),
-  published: boolean("published").default(false).notNull(),
-  showInNav: boolean("show_in_nav").default(true).notNull(),
-  navOrder: integer("nav_order").default(0).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const posts = pgTable("posts", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  slug: text("slug").notNull().unique(),
-  title: text("title").notNull(),
-  content: text("content").default("").notNull(),
-  excerpt: text("excerpt"),
-  published: boolean("published").default(false).notNull(),
-  publishedAt: timestamp("published_at"),
-  authorId: text("author_id").references(() => users.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const siteSettings = pgTable("site_settings", {
+export const sites = pgTable("sites", {
   id: text("id").primaryKey().default("default"),
-  siteName: text("site_name").default("ucms").notNull(),
-  tagline: text("tagline"),
-  description: text("description"),
-  footerText: text("footer_text"),
-  contactEmail: text("contact_email"),
-  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  name: text("name").default("My Site").notNull(),
+  draft: jsonb("draft").$type<Block[]>().default([]).notNull(),
+  published: jsonb("published").$type<Block[] | null>(),
+  themeColor: text("theme_color").default("#4338ca").notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => new Date())
+    .notNull(),
 });
 
-export type Page = typeof pages.$inferSelect;
-export type Post = typeof posts.$inferSelect;
-export type SiteSettings = typeof siteSettings.$inferSelect;
+// Uploaded images, stored in the database so the app stays self-contained with
+// no external object storage to configure. Served at /media/:id.
+export const media = pgTable("media", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  mimeType: text("mime_type").notNull(),
+  data: text("data").notNull(), // base64-encoded bytes
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => new Date())
+    .notNull(),
+});
+
+export type Site = typeof sites.$inferSelect;
+export type Media = typeof media.$inferSelect;
 export type User = typeof users.$inferSelect;
