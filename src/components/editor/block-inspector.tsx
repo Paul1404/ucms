@@ -15,11 +15,13 @@ import {
   type Block,
   type BlockStyle,
   BREAKPOINTS,
+  BUTTON_VARIANTS,
   type Device,
   type Frame,
   getFrame,
   hasOwnFrame,
   IMAGE_SIZES,
+  SOCIAL_PLATFORMS,
   setFrame as setDeviceFrame,
 } from "@/lib/blocks";
 
@@ -30,6 +32,23 @@ const alignOptions = ALIGNMENTS.map((a) => ({
 const sizeOptions = IMAGE_SIZES.map((s) => ({
   value: s,
   label: { normal: "Normal", wide: "Breit", full: "Volle Breite" }[s],
+}));
+const variantOptions = BUTTON_VARIANTS.map((variant) => ({
+  value: variant,
+  label: { primary: "Gefüllt", outline: "Umrandet" }[variant],
+}));
+const SOCIAL_LABELS: Record<(typeof SOCIAL_PLATFORMS)[number], string> = {
+  facebook: "Facebook",
+  instagram: "Instagram",
+  youtube: "YouTube",
+  twitter: "X / Twitter",
+  linkedin: "LinkedIn",
+  website: "Webseite",
+  email: "E-Mail",
+};
+const socialOptions = SOCIAL_PLATFORMS.map((platform) => ({
+  value: platform,
+  label: SOCIAL_LABELS[platform],
 }));
 
 const DEFAULT_STYLE: BlockStyle = {
@@ -587,6 +606,325 @@ function renderFields(block: Block, set: (patch: Partial<Block>) => void) {
             value={block.address}
             onChange={(address) => set({ address })}
           />
+        </>
+      );
+
+    case "events":
+      return (
+        <>
+          <TextField
+            label="Überschrift"
+            value={block.heading}
+            onChange={(heading) => set({ heading })}
+          />
+          <div className="space-y-3">
+            {block.items.map((item, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: list edited by position
+              <div key={i} className="space-y-2 rounded-md border border-[var(--color-border)] p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
+                    Termin {i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => set({ items: block.items.filter((_, j) => j !== i) })}
+                    className="text-[var(--color-muted-foreground)] hover:text-[var(--color-destructive)]"
+                    aria-label="Termin entfernen"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <TextField
+                    label="Tag"
+                    value={item.date}
+                    onChange={(date) =>
+                      set({ items: block.items.map((it, j) => (j === i ? { ...it, date } : it)) })
+                    }
+                  />
+                  <TextField
+                    label="Uhrzeit"
+                    value={item.time}
+                    onChange={(time) =>
+                      set({ items: block.items.map((it, j) => (j === i ? { ...it, time } : it)) })
+                    }
+                  />
+                </div>
+                <TextField
+                  label="Titel"
+                  value={item.title}
+                  onChange={(title) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, title } : it)) })
+                  }
+                />
+                <TextField
+                  label="Ort"
+                  value={item.location}
+                  onChange={(location) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, location } : it)) })
+                  }
+                />
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              set({ items: [...block.items, { date: "", time: "", title: "", location: "" }] })
+            }
+          >
+            <Plus /> Termin hinzufügen
+          </Button>
+        </>
+      );
+
+    case "team":
+      return (
+        <>
+          <TextField
+            label="Überschrift"
+            value={block.heading}
+            onChange={(heading) => set({ heading })}
+          />
+          <div className="space-y-3">
+            {block.items.map((item, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: list edited by position
+              <div key={i} className="space-y-2 rounded-md border border-[var(--color-border)] p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
+                    Person {i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => set({ items: block.items.filter((_, j) => j !== i) })}
+                    className="text-[var(--color-muted-foreground)] hover:text-[var(--color-destructive)]"
+                    aria-label="Person entfernen"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+                <ImageField
+                  label="Foto"
+                  value={item.photo}
+                  onChange={(photo) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, photo } : it)) })
+                  }
+                />
+                <TextField
+                  label="Name"
+                  value={item.name}
+                  onChange={(name) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, name } : it)) })
+                  }
+                />
+                <TextField
+                  label="Rolle"
+                  value={item.role}
+                  onChange={(role) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, role } : it)) })
+                  }
+                />
+                <TextField
+                  label="E-Mail"
+                  value={item.email}
+                  onChange={(email) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, email } : it)) })
+                  }
+                />
+                <TextField
+                  label="Telefon"
+                  value={item.phone}
+                  onChange={(phone) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, phone } : it)) })
+                  }
+                />
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              set({
+                items: [...block.items, { photo: "", name: "", role: "", email: "", phone: "" }],
+              })
+            }
+          >
+            <Plus /> Person hinzufügen
+          </Button>
+        </>
+      );
+
+    case "news":
+      return (
+        <>
+          <TextField
+            label="Überschrift"
+            value={block.heading}
+            onChange={(heading) => set({ heading })}
+          />
+          <div className="space-y-3">
+            {block.items.map((item, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: list edited by position
+              <div key={i} className="space-y-2 rounded-md border border-[var(--color-border)] p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
+                    Beitrag {i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => set({ items: block.items.filter((_, j) => j !== i) })}
+                    className="text-[var(--color-muted-foreground)] hover:text-[var(--color-destructive)]"
+                    aria-label="Beitrag entfernen"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+                <ImageField
+                  label="Bild"
+                  value={item.image}
+                  onChange={(image) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, image } : it)) })
+                  }
+                />
+                <TextField
+                  label="Datum"
+                  value={item.date}
+                  onChange={(date) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, date } : it)) })
+                  }
+                />
+                <TextField
+                  label="Titel"
+                  value={item.title}
+                  onChange={(title) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, title } : it)) })
+                  }
+                />
+                <TextAreaField
+                  label="Text"
+                  rows={3}
+                  value={item.text}
+                  onChange={(text) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, text } : it)) })
+                  }
+                />
+                <TextField
+                  label="Link"
+                  value={item.linkUrl}
+                  onChange={(linkUrl) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, linkUrl } : it)) })
+                  }
+                />
+                <TextField
+                  label="Link-Text"
+                  value={item.linkText}
+                  onChange={(linkText) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, linkText } : it)) })
+                  }
+                />
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              set({
+                items: [
+                  ...block.items,
+                  {
+                    date: "",
+                    title: "",
+                    text: "",
+                    image: "",
+                    linkUrl: "",
+                    linkText: "Weiterlesen",
+                  },
+                ],
+              })
+            }
+          >
+            <Plus /> Beitrag hinzufügen
+          </Button>
+        </>
+      );
+
+    case "button":
+      return (
+        <>
+          <TextField label="Text" value={block.text} onChange={(text) => set({ text })} />
+          <TextField label="Link" value={block.url} onChange={(url) => set({ url })} />
+          <SelectField
+            label="Stil"
+            value={block.variant}
+            options={variantOptions}
+            onChange={(variant) => set({ variant })}
+          />
+          <SelectField
+            label="Ausrichtung"
+            value={block.align}
+            options={alignOptions}
+            onChange={(align) => set({ align })}
+          />
+        </>
+      );
+
+    case "socials":
+      return (
+        <>
+          <TextField
+            label="Überschrift"
+            value={block.heading}
+            onChange={(heading) => set({ heading })}
+          />
+          <div className="space-y-3">
+            {block.items.map((item, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: list edited by position
+              <div key={i} className="space-y-2 rounded-md border border-[var(--color-border)] p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
+                    Link {i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => set({ items: block.items.filter((_, j) => j !== i) })}
+                    className="text-[var(--color-muted-foreground)] hover:text-[var(--color-destructive)]"
+                    aria-label="Link entfernen"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+                <SelectField
+                  label="Plattform"
+                  value={item.platform}
+                  options={socialOptions}
+                  onChange={(platform) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, platform } : it)) })
+                  }
+                />
+                <TextField
+                  label="Link"
+                  value={item.url}
+                  onChange={(url) =>
+                    set({ items: block.items.map((it, j) => (j === i ? { ...it, url } : it)) })
+                  }
+                />
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => set({ items: [...block.items, { platform: "facebook", url: "" }] })}
+          >
+            <Plus /> Link hinzufügen
+          </Button>
         </>
       );
 

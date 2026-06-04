@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   Clock,
   Grid3x3,
   ImageIcon,
@@ -10,8 +11,12 @@ import {
   MessageCircleQuestion,
   Minus,
   MousePointerClick,
+  Newspaper,
   Quote,
+  Share2,
+  SquareMousePointer,
   Type,
+  Users,
   Video,
 } from "lucide-react";
 import { BLOCK_LABELS, type BlockType } from "@/lib/blocks";
@@ -29,6 +34,11 @@ const ICONS: Record<BlockType, LucideIcon> = {
   testimonial: Quote,
   video: Video,
   map: MapPin,
+  events: CalendarDays,
+  team: Users,
+  news: Newspaper,
+  button: SquareMousePointer,
+  socials: Share2,
   divider: Minus,
 };
 
@@ -39,12 +49,17 @@ const ORDER: BlockType[] = [
   "gallery",
   "features",
   "testimonial",
+  "events",
+  "news",
+  "team",
   "cta",
+  "button",
   "contact",
   "hours",
   "faq",
   "video",
   "map",
+  "socials",
   "divider",
 ];
 

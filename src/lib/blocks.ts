@@ -8,6 +8,18 @@ export const BACKGROUNDS = ["default", "muted", "primary", "dark"] as const;
 export const PADDINGS = ["sm", "md", "lg"] as const;
 export const ALIGNMENTS = ["left", "center"] as const;
 export const IMAGE_SIZES = ["normal", "wide", "full"] as const;
+export const BUTTON_VARIANTS = ["primary", "outline"] as const;
+// Social platforms a community site links to. Each maps to an icon in the view.
+export const SOCIAL_PLATFORMS = [
+  "facebook",
+  "instagram",
+  "youtube",
+  "twitter",
+  "linkedin",
+  "website",
+  "email",
+] as const;
+export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number];
 
 // The free-form canvas is laid out on a fixed design width per breakpoint.
 // Every frame coordinate is in pixels relative to that breakpoint's width.
@@ -200,6 +212,84 @@ export const mapSchema = v.object({
   ...styleFields,
 });
 
+// A dated entry: a service, mass, concert, or any event. `date` and `time` are
+// free text so editors are not boxed into one format ("Sonntag", "1. Advent").
+export const eventItemSchema = v.object({
+  date: v.optional(v.string(), ""),
+  time: v.optional(v.string(), ""),
+  title: v.optional(v.string(), ""),
+  location: v.optional(v.string(), ""),
+});
+
+export const eventsSchema = v.object({
+  id: idField,
+  type: v.literal("events"),
+  heading: v.optional(v.string(), ""),
+  items: v.optional(v.array(eventItemSchema), []),
+  ...styleFields,
+});
+
+// One person in a team or contact directory.
+export const teamItemSchema = v.object({
+  photo: v.optional(v.string(), ""),
+  name: v.optional(v.string(), ""),
+  role: v.optional(v.string(), ""),
+  email: v.optional(v.string(), ""),
+  phone: v.optional(v.string(), ""),
+});
+
+export const teamSchema = v.object({
+  id: idField,
+  type: v.literal("team"),
+  heading: v.optional(v.string(), ""),
+  items: v.optional(v.array(teamItemSchema), []),
+  ...styleFields,
+});
+
+// A short news post or announcement. `linkUrl` is optional; when set the card
+// links out (e.g. to a full article or a PDF).
+export const newsItemSchema = v.object({
+  date: v.optional(v.string(), ""),
+  title: v.optional(v.string(), ""),
+  text: v.optional(v.string(), ""),
+  image: v.optional(v.string(), ""),
+  linkUrl: v.optional(v.string(), ""),
+  linkText: v.optional(v.string(), ""),
+});
+
+export const newsSchema = v.object({
+  id: idField,
+  type: v.literal("news"),
+  heading: v.optional(v.string(), ""),
+  items: v.optional(v.array(newsItemSchema), []),
+  ...styleFields,
+});
+
+// A standalone link button: donations, ticket sales, newsletter sign-up.
+export const buttonSchema = v.object({
+  id: idField,
+  type: v.literal("button"),
+  text: v.optional(v.string(), ""),
+  url: v.optional(v.string(), ""),
+  variant: v.optional(v.picklist(BUTTON_VARIANTS), "primary"),
+  align: v.optional(v.picklist(ALIGNMENTS), "center"),
+  ...styleFields,
+});
+
+// A row of social media links.
+export const socialItemSchema = v.object({
+  platform: v.optional(v.picklist(SOCIAL_PLATFORMS), "facebook"),
+  url: v.optional(v.string(), ""),
+});
+
+export const socialsSchema = v.object({
+  id: idField,
+  type: v.literal("socials"),
+  heading: v.optional(v.string(), ""),
+  items: v.optional(v.array(socialItemSchema), []),
+  ...styleFields,
+});
+
 export const blockSchema = v.variant("type", [
   heroSchema,
   textSchema,
@@ -213,6 +303,11 @@ export const blockSchema = v.variant("type", [
   testimonialSchema,
   videoSchema,
   mapSchema,
+  eventsSchema,
+  teamSchema,
+  newsSchema,
+  buttonSchema,
+  socialsSchema,
   v.object({ id: idField, type: v.literal("divider"), ...styleFields }),
 ]);
 
@@ -232,6 +327,11 @@ export type FaqBlock = v.InferOutput<typeof faqSchema>;
 export type TestimonialBlock = v.InferOutput<typeof testimonialSchema>;
 export type VideoBlock = v.InferOutput<typeof videoSchema>;
 export type MapBlock = v.InferOutput<typeof mapSchema>;
+export type EventsBlock = v.InferOutput<typeof eventsSchema>;
+export type TeamBlock = v.InferOutput<typeof teamSchema>;
+export type NewsBlock = v.InferOutput<typeof newsSchema>;
+export type ButtonBlock = v.InferOutput<typeof buttonSchema>;
+export type SocialsBlock = v.InferOutput<typeof socialsSchema>;
 
 // --- per-breakpoint layout helpers ---
 
@@ -468,6 +568,82 @@ export function createBlock(type: BlockType): Block {
         background: "default",
         padding: "lg",
       };
+    case "events":
+      return {
+        id,
+        type,
+        heading: "Termine & Gottesdienste",
+        items: [
+          { date: "Sonntag", time: "10:00", title: "Heilige Messe", location: "Hauptkirche" },
+          { date: "Mittwoch", time: "18:30", title: "Abendgebet", location: "Krypta" },
+          { date: "Samstag", time: "17:00", title: "Beichtgelegenheit", location: "Seitenkapelle" },
+        ],
+        background: "default",
+        padding: "lg",
+      };
+    case "team":
+      return {
+        id,
+        type,
+        heading: "Unser Team",
+        items: [
+          { photo: "", name: "Name der Person", role: "Pfarrer", email: "", phone: "" },
+          { photo: "", name: "Name der Person", role: "Gemeindereferentin", email: "", phone: "" },
+          { photo: "", name: "Name der Person", role: "Pastoralreferent", email: "", phone: "" },
+        ],
+        background: "muted",
+        padding: "lg",
+      };
+    case "news":
+      return {
+        id,
+        type,
+        heading: "Aktuelles",
+        items: [
+          {
+            date: "1. Juni 2026",
+            title: "Eine Neuigkeit aus der Gemeinde",
+            text: "Ein kurzer Anrisstext, der neugierig auf den ganzen Beitrag macht.",
+            image: "",
+            linkUrl: "",
+            linkText: "Weiterlesen",
+          },
+          {
+            date: "20. Mai 2026",
+            title: "Noch eine Meldung",
+            text: "Ein zweiter kurzer Anrisstext für die zweite Karte.",
+            image: "",
+            linkUrl: "",
+            linkText: "Weiterlesen",
+          },
+        ],
+        background: "default",
+        padding: "lg",
+      };
+    case "button":
+      return {
+        id,
+        type,
+        text: "Jetzt spenden",
+        url: "#",
+        variant: "primary",
+        align: "center",
+        background: "default",
+        padding: "md",
+      };
+    case "socials":
+      return {
+        id,
+        type,
+        heading: "Folgt uns",
+        items: [
+          { platform: "facebook", url: "" },
+          { platform: "instagram", url: "" },
+          { platform: "youtube", url: "" },
+        ],
+        background: "default",
+        padding: "md",
+      };
     case "divider":
       return { id, type, background: "default", padding: "sm" };
   }
@@ -486,6 +662,11 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   testimonial: "Stimme",
   video: "Video",
   map: "Karte",
+  events: "Termine",
+  team: "Team",
+  news: "Aktuelles",
+  button: "Button",
+  socials: "Social Media",
   divider: "Trenner",
 };
 
@@ -504,6 +685,11 @@ export const DEFAULT_SIZES: Record<BlockType, { w: number; h: number }> = {
   testimonial: { w: 760, h: 300 },
   video: { w: 880, h: 520 },
   map: { w: 880, h: 480 },
+  events: { w: 720, h: 360 },
+  team: { w: 1040, h: 420 },
+  news: { w: 1040, h: 460 },
+  button: { w: 320, h: 80 },
+  socials: { w: 480, h: 140 },
   divider: { w: 1040, h: 40 },
 };
 

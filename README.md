@@ -9,7 +9,7 @@ The first account you create becomes the administrator. Public sign-up is closed
 ## Features
 
 - Free-form visual editor: drag to position, drag handles to resize, per-element background, text color, radius, padding, opacity, shadow, and z-order
-- Thirteen section types: hero, text, image, gallery, features, testimonial, call to action, contact, opening hours, FAQ, video, map, divider
+- Eighteen section types: hero, text, image, gallery, features, testimonial, events and service times, news, team and contact people, call to action, button, contact, opening hours, FAQ, video, map, social links, divider
 - Multiple sites per instance, each served at `your-domain/<slug>`
 - Configurable header (logo, navigation, sticky) and footer (text, links) per site
 - Invited editors: the admin creates users and assigns them to the sites they may edit

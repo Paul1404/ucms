@@ -37,6 +37,11 @@ const ALL_TYPES: BlockType[] = [
   "testimonial",
   "video",
   "map",
+  "events",
+  "team",
+  "news",
+  "button",
+  "socials",
   "divider",
 ];
 
