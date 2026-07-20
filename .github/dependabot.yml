@@ -11,9 +11,24 @@ updates:
     commit-message:
       prefix: "chore(deps)"
     groups:
+      orpc:
+        patterns:
+          - "@orpc/*"
+      react:
+        patterns:
+          - "react*"
+          - "@types/react*"
       tanstack:
         patterns:
           - "@tanstack/*"
+      tailwind:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/*"
+      vite:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
 
   - package-ecosystem: "docker"
     directory: "/"
