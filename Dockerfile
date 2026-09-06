@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # --- builder: install all deps and build the app ---
-FROM oven/bun:1.3.14 AS builder
+FROM oven/bun:1.4.2 AS builder
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
@@ -11,13 +11,13 @@ RUN bun run build
 # --- prod-deps: production-only node_modules ---
 # Resolved explicitly here because Bun auto-install in the runtime image does
 # not resolve peer/optional-peer deps (kysely, better-call) correctly.
-FROM oven/bun:1.3.14 AS prod-deps
+FROM oven/bun:1.4.2 AS prod-deps
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production
 
 # --- runner: minimal runtime image ---
-FROM oven/bun:1.3.14-slim AS runner
+FROM oven/bun:1.4.2-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
